@@ -33,6 +33,7 @@ jobs:
           window.APP_CONFIG = {
             SUPABASE_URL: "${{ secrets.SUPABASE_URL }}",
             SUPABASE_ANON_KEY: "${{ secrets.SUPABASE_ANON_KEY }}",
+            FN_GESTION_USUARIOS: "bright-handler",
           };
           EOF
 
