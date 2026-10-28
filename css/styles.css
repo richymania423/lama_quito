@@ -130,6 +130,9 @@ h1, h2, h3 { margin: 0 0 .4rem; }
 .badge { display: inline-block; padding: .15rem .55rem; border-radius: 20px; font-size: .75rem; font-weight: 600; }
 .badge-active { background: #e4f6ec; color: var(--accent); }
 .badge-inactive { background: #fdecea; color: var(--danger); }
+.badge-rol { background: #eef3fb; color: var(--primary-dark); }
+.acceso-box { border: 1px solid var(--border); border-radius: 8px; padding: .8rem 1rem; margin-bottom: .9rem; }
+.acceso-box legend { font-size: .85rem; font-weight: 700; color: var(--primary-dark); padding: 0 .4rem; }
 
 /* ---------- Forms ---------- */
 input, select, textarea {

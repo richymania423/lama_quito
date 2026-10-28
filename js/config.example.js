@@ -12,4 +12,6 @@
 window.APP_CONFIG = {
   SUPABASE_URL: "https://TU-PROYECTO.supabase.co",
   SUPABASE_ANON_KEY: "TU_CLAVE_ANON_PUBLIC",
+  // Slug de la Edge Function de gestión de usuarios (como aparece en su URL).
+  FN_GESTION_USUARIOS: "gestion-usuarios",
 };

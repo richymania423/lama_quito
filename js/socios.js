@@ -99,6 +99,27 @@ const Socios = (() => {
         <div class="form-field">
           <label><input type="checkbox" name="activo" style="width:auto;margin-right:.4rem" ${(!s || s.activo) ? "checked" : ""} /> Socio activo</label>
         </div>
+
+        ${UI.puede("socios") ? `
+        <fieldset class="acceso-box">
+          <legend>Acceso al sistema</legend>
+          <p class="muted" style="margin-top:0">El socio ingresa con su <b>cédula</b> como usuario. Marca el acceso y define una contraseña.</p>
+          <div class="form-field">
+            <label><input type="checkbox" id="chkAcceso" name="tieneAcceso" style="width:auto;margin-right:.4rem" /> Tiene acceso al sistema</label>
+          </div>
+          <div id="accesoDetalle" class="hidden">
+            <div class="form-field">
+              <label><input type="checkbox" name="esSecretario" style="width:auto;margin-right:.4rem" /> Es secretario (si no, será solo lectura)</label>
+            </div>
+            <div class="form-field">
+              <label>Contraseña <span class="muted" id="passHint"></span></label>
+              <input type="text" name="accesoPassword" minlength="6" placeholder="Mínimo 6 caracteres" />
+            </div>
+          </div>
+          <p class="login-error" id="accesoError"></p>
+        </fieldset>
+        ` : ""}
+
         <div class="btn-row">
           <button type="submit" class="btn">Guardar</button>
           <button type="button" class="btn btn-outline" id="cancelSocio">Cancelar</button>
@@ -106,16 +127,55 @@ const Socios = (() => {
       </form>`);
 
     document.getElementById("cancelSocio").addEventListener("click", UI.closeModal);
+
+    // --- sección de acceso (solo admin) ---
+    const chkAcceso = document.getElementById("chkAcceso");
+    if (chkAcceso) {
+      const detalle = document.getElementById("accesoDetalle");
+      const passHint = document.getElementById("passHint");
+      const toggle = () => detalle.classList.toggle("hidden", !chkAcceso.checked);
+      chkAcceso.addEventListener("change", toggle);
+      // precargar estado de acceso actual del socio (si tiene cédula)
+      if (s && s.identificacion) {
+        Auth.gestionarAcceso("estado_acceso", { cedulas: [s.identificacion] })
+          .then(({ estado }) => {
+            const info = estado && estado[s.identificacion];
+            if (info && info.tieneAcceso) {
+              chkAcceso.checked = true;
+              const chkSec = document.querySelector('[name="esSecretario"]');
+              if (chkSec) chkSec.checked = info.rol === "secretario";
+              if (passHint) passHint.textContent = "(déjala vacía para no cambiarla)";
+            }
+            toggle();
+          })
+          .catch(() => { /* si falla, se deja sin marcar */ });
+      }
+    }
     document.getElementById("formSocio").addEventListener("submit", async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
       const nombre = (fd.get("nombre") || "").trim();
       if (!nombre) return UI.toast("El nombre es obligatorio.");
+      const cedula = (fd.get("identificacion") || "").trim();
+      const quiereAcceso = fd.get("tieneAcceso") === "on";
+      const esSecretario = fd.get("esSecretario") === "on";
+      const accesoPass = fd.get("accesoPassword") || "";
+      const accesoErr = document.getElementById("accesoError");
+      if (accesoErr) accesoErr.textContent = "";
+
+      // Validación: para dar acceso se requiere cédula
+      if (quiereAcceso && !cedula) {
+        if (accesoErr) accesoErr.textContent = "Para dar acceso, el socio debe tener cédula/identificación.";
+        return;
+      }
+
+      const btnSubmit = e.target.querySelector("button[type=submit]");
+      if (btnSubmit) { btnSubmit.disabled = true; btnSubmit.textContent = "Guardando..."; }
       try {
-        await DB.socios.guardar({
+        const guardado = await DB.socios.guardar({
           id: fd.get("id") || undefined,
           nombre,
-          identificacion: fd.get("identificacion"),
+          identificacion: cedula,
           telefono: fd.get("telefono"),
           email: fd.get("email"),
           fechaNacimiento: fd.get("fechaNacimiento"),
@@ -124,12 +184,39 @@ const Socios = (() => {
           activo: fd.get("activo") === "on",
           creado: s ? s.creado : undefined,
         });
+
+        // Gestión de acceso (solo si el admin usó esa sección)
+        if (document.getElementById("chkAcceso")) {
+          try {
+            if (quiereAcceso) {
+              await Auth.gestionarAcceso("guardar_acceso", {
+                cedula,
+                password: accesoPass || undefined,
+                rol: esSecretario ? "secretario" : "lectura",
+                nombre,
+                socioId: guardado.id,
+              });
+            } else if (cedula) {
+              // si se desmarcó el acceso, quitar el usuario si existía
+              await Auth.gestionarAcceso("quitar_acceso", { cedula });
+            }
+          } catch (accEx) {
+            // el socio sí se guardó; informamos el problema de acceso
+            UI.closeModal();
+            UI.toast("Socio guardado, pero el acceso falló: " + (accEx.message || accEx));
+            render();
+            return;
+          }
+        }
+
         UI.closeModal();
         UI.toast(s ? "Socio actualizado." : "Socio agregado.");
         render();
       } catch (err) {
         console.error("Error al guardar socio:", err);
+        if (accesoErr) accesoErr.textContent = "";
         UI.toast("No se pudo guardar: " + (err.message || err));
+        if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = "Guardar"; }
       }
     });
   }

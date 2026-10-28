@@ -19,24 +19,19 @@
     <div class="login-card">
       <img src="images/logo_lama_quito.png" alt="Logo LAMA Quito" class="login-logo" />
       <h1>L.A.M.A. Capítulo Quito</h1>
-      <p class="muted">Selecciona tu rol para ingresar</p>
+      <p class="muted">Ingresa con tu cédula y contraseña</p>
       <form id="formLogin">
         <div class="form-field">
-          <label for="loginRol">Rol</label>
-          <select id="loginRol" name="rol">
-            <option value="lectura">Lectura (solo consulta)</option>
-            <option value="secretario">Secretario</option>
-            <option value="admin">Administrador</option>
-          </select>
+          <label for="loginCedula">Cédula o correo</label>
+          <input type="text" id="loginCedula" name="cedula" placeholder="Cédula (o correo del administrador)" autocomplete="username" required />
         </div>
-        <div class="form-field" id="loginPassWrap">
+        <div class="form-field">
           <label for="loginPass">Contraseña</label>
-          <input type="password" id="loginPass" name="password" placeholder="Contraseña del rol" autocomplete="off" />
+          <input type="password" id="loginPass" name="password" placeholder="Tu contraseña" autocomplete="current-password" required />
         </div>
         <p class="login-error" id="loginError"></p>
         <button type="submit" class="btn login-btn">Ingresar</button>
       </form>
-      <p class="login-note muted">El rol Lectura no requiere contraseña.</p>
     </div>
   </div>
 
@@ -240,6 +235,7 @@
         </table>
       </div>
     </section>
+
   </main>
 
   <!-- ===================== MODAL GENÉRICO ===================== -->

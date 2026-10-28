@@ -202,30 +202,32 @@ function mostrarLogin() {
 }
 
 function configurarLogin() {
-  const selRol = document.getElementById("loginRol");
-  const passWrap = document.getElementById("loginPassWrap");
+  const form = document.getElementById("formLogin");
+  const btn = form.querySelector("button[type=submit]");
 
-  // oculta el campo de contraseña para el rol Lectura
-  const togglePass = () => {
-    passWrap.style.display = selRol.value === "lectura" ? "none" : "";
-  };
-  selRol.addEventListener("change", togglePass);
-  togglePass();
-
-  document.getElementById("formLogin").addEventListener("submit", (e) => {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const rol = selRol.value;
+    const cedula = document.getElementById("loginCedula").value;
     const pass = document.getElementById("loginPass").value;
-    const res = Auth.login(rol, pass);
     const err = document.getElementById("loginError");
-    if (!res.ok) { err.textContent = res.error; return; }
     err.textContent = "";
-    document.getElementById("loginPass").value = "";
-    iniciarSesionUI();
+    btn.disabled = true;
+    btn.textContent = "Ingresando...";
+    try {
+      const res = await Auth.login(cedula, pass);
+      if (!res.ok) { err.textContent = res.error; return; }
+      document.getElementById("loginPass").value = "";
+      iniciarSesionUI();
+    } catch (ex) {
+      err.textContent = "Error de conexión: " + (ex.message || ex);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Ingresar";
+    }
   });
 
-  document.getElementById("btnLogout").addEventListener("click", () => {
-    Auth.logout();
+  document.getElementById("btnLogout").addEventListener("click", async () => {
+    await Auth.logout();
     mostrarLogin();
   });
 }
@@ -255,9 +257,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // autenticación: restaura sesión o pide login
   configurarLogin();
-  if (Auth.cargarSesion()) {
-    iniciarSesionUI();
-  } else {
-    mostrarLogin();
-  }
+  Auth.cargarSesion().then((rol) => {
+    if (rol) iniciarSesionUI();
+    else mostrarLogin();
+  }).catch(() => mostrarLogin());
 });
