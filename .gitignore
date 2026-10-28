@@ -1,0 +1,27 @@
+# Dependencias
+node_modules/
+
+# Entorno / secretos (si luego usas Supabase u otro backend)
+.env
+.env.local
+*.local
+
+# Configuración de Supabase (claves) — usar config.example.js como plantilla
+js/config.js
+
+# Editores
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Respaldos descargados de la app
+respaldo-secretario-lama-*.json
+
+# Logs
+*.log
+npm-debug.log*

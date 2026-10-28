@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>L.A.M.A. Capítulo Quito — Gestión de Asambleas</title>
+  <meta name="description" content="Aplicación para la gestión de asambleas: socios, asistencia, orden del día, temas tratados y reportes PDF." />
+  <link rel="icon" type="image/png" href="images/logo_lama_quito.png" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <!-- Cliente de Supabase (base de datos en la nube) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Librería para generar PDF (jsPDF + autotable) desde CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" defer></script>
+</head>
+<body>
+  <!-- ===================== LOGIN ===================== -->
+  <div class="login-screen" id="loginScreen">
+    <div class="login-card">
+      <img src="images/logo_lama_quito.png" alt="Logo LAMA Quito" class="login-logo" />
+      <h1>L.A.M.A. Capítulo Quito</h1>
+      <p class="muted">Selecciona tu rol para ingresar</p>
+      <form id="formLogin">
+        <div class="form-field">
+          <label for="loginRol">Rol</label>
+          <select id="loginRol" name="rol">
+            <option value="lectura">Lectura (solo consulta)</option>
+            <option value="secretario">Secretario</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+        <div class="form-field" id="loginPassWrap">
+          <label for="loginPass">Contraseña</label>
+          <input type="password" id="loginPass" name="password" placeholder="Contraseña del rol" autocomplete="off" />
+        </div>
+        <p class="login-error" id="loginError"></p>
+        <button type="submit" class="btn login-btn">Ingresar</button>
+      </form>
+      <p class="login-note muted">El rol Lectura no requiere contraseña.</p>
+    </div>
+  </div>
+
+  <header class="app-header">
+    <div class="brand">
+      <img src="images/logo_lama_quito.png" alt="Logo LAMA Quito" class="brand-logo" />
+      <div>
+        <h1>L.A.M.A. Capítulo Quito</h1>
+        <p class="tagline">Gestión de asambleas del grupo</p>
+      </div>
+    </div>
+    <nav class="main-nav" id="mainNav">
+      <button class="nav-btn active" data-view="dashboard">Inicio</button>
+      <button class="nav-btn" data-view="socios">Socios</button>
+      <button class="nav-btn" data-view="asambleas">Asambleas</button>
+      <button class="nav-btn" data-view="asistencia">Asistencia</button>
+      <button class="nav-btn" data-view="cuadro">Cuadro anual</button>
+    </nav>
+    <div class="session-box">
+      <span class="session-rol" id="sessionRol"></span>
+      <button class="btn btn-sm btn-outline" id="btnLogout">Salir</button>
+    </div>
+  </header>
+
+  <main class="app-main" id="appMain">
+    <!-- ===================== DASHBOARD ===================== -->
+    <section class="view active" id="view-dashboard">
+      <h2>Resumen general</h2>
+      <div class="cards-grid">
+        <div class="stat-card">
+          <span class="stat-num" id="statSocios">0</span>
+          <span class="stat-label">Socios registrados</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-num" id="statActivos">0</span>
+          <span class="stat-label">Socios activos</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-num" id="statAsambleas">0</span>
+          <span class="stat-label">Asambleas realizadas (este año)</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-num" id="statPromedio">0%</span>
+          <span class="stat-label">Asistencia promedio</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>🎂 Cumpleañeros de <span id="mesCumple">—</span></h3>
+        <div id="dashCumple" class="list-simple"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Últimas asambleas</h3>
+        <div id="dashUltimas" class="list-simple"></div>
+      </div>
+
+      <div class="panel" id="panelRespaldo">
+        <h3>Datos y respaldo</h3>
+        <p class="muted">Exporta un respaldo de la información en formato JSON o restáuralo. Usa “Borrar todo” con precaución.</p>
+        <div class="btn-row">
+          <button class="btn" id="btnExport">Exportar respaldo (JSON)</button>
+          <label class="btn btn-outline">
+            Importar respaldo
+            <input type="file" id="fileImport" accept="application/json" hidden />
+          </label>
+          <button class="btn btn-danger btn-outline" id="btnReset">Borrar todo</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== SOCIOS ===================== -->
+    <section class="view" id="view-socios">
+      <div class="view-head">
+        <h2>Listado de socios</h2>
+        <button class="btn" id="btnNuevoSocio">+ Nuevo socio</button>
+      </div>
+      <div class="toolbar">
+        <input type="search" id="buscarSocio" placeholder="Buscar socio por nombre o cédula..." />
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tablaSocios">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nombre completo</th>
+              <th>Identificación</th>
+              <th>Teléfono</th>
+              <th>Nacimiento</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===================== ASAMBLEAS ===================== -->
+    <section class="view" id="view-asambleas">
+      <div class="view-head">
+        <h2>Asambleas</h2>
+        <button class="btn" id="btnNuevaAsamblea">+ Nueva asamblea</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tablaAsambleas">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Hora</th>
+              <th>Lugar</th>
+              <th>Mes correspondencia</th>
+              <th>Asistentes</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===================== ASISTENCIA / DETALLE ASAMBLEA ===================== -->
+    <section class="view" id="view-asistencia">
+      <div class="view-head">
+        <h2>Asamblea en curso</h2>
+        <div class="btn-row">
+          <select id="selectorAsamblea"></select>
+        </div>
+      </div>
+
+      <div id="asambleaDetalle" class="hidden">
+        <div class="panel">
+          <h3>Datos de la asamblea</h3>
+          <div class="asamblea-meta" id="asambleaMeta"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Orden del día</h3>
+            <span class="muted">Se define al crear/editar la asamblea</span>
+          </div>
+          <ol id="listaOrdenDia" class="orden-dia"></ol>
+        </div>
+
+        <div class="panel">
+          <h3>Temas principales tratados</h3>
+          <textarea id="temasTratados" rows="6" placeholder="Describe los temas principales tratados en la asamblea..."></textarea>
+          <div class="btn-row">
+            <button class="btn btn-sm" id="btnGuardarTemas">Guardar temas</button>
+            <span class="save-hint" id="temasHint"></span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Registro de asistencia</h3>
+            <div class="btn-row">
+              <button class="btn btn-sm btn-outline" id="btnMarcarTodos">Marcar todos</button>
+              <button class="btn btn-sm btn-outline" id="btnDesmarcarTodos">Desmarcar todos</button>
+            </div>
+          </div>
+          <div class="asistencia-stats" id="asistenciaStats"></div>
+          <div class="table-wrap">
+            <table class="data-table" id="tablaAsistencia">
+              <thead>
+                <tr>
+                  <th>Presente</th>
+                  <th>Socio</th>
+                  <th>Identificación</th>
+                  <th>Observación</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Documento final</h3>
+          <p class="muted">Genera el acta/reporte en PDF con el listado de asistentes y el resumen de temas tratados.</p>
+          <button class="btn" id="btnGenerarPDF">📄 Generar PDF de la asamblea</button>
+        </div>
+      </div>
+
+      <p class="muted empty-hint" id="asistenciaEmpty">Selecciona o crea una asamblea para registrar la asistencia.</p>
+    </section>
+
+    <!-- ===================== CUADRO ANUAL ===================== -->
+    <section class="view" id="view-cuadro">
+      <div class="view-head">
+        <h2>Cuadro de asistencias anual</h2>
+        <div class="btn-row">
+          <select id="selectorAnio"></select>
+          <button class="btn btn-sm" id="btnPDFCuadro">📄 Exportar cuadro PDF</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table cuadro-table" id="tablaCuadro">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================== MODAL GENÉRICO ===================== -->
+  <div class="modal-backdrop hidden" id="modalBackdrop">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <h3 id="modalTitle">Título</h3>
+        <button class="modal-close" id="modalClose" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <footer class="app-footer">
+    <span>L.A.M.A. Capítulo Quito · Gestión de asambleas</span>
+    <span>Desarrollado por Za.Tho - Copyright</span>
+  </footer>
+
+  <script src="js/config.js" defer></script>
+  <script src="js/auth.js" defer></script>
+  <script src="js/db.js" defer></script>
+  <script src="js/socios.js" defer></script>
+  <script src="js/asambleas.js" defer></script>
+  <script src="js/asistencia.js" defer></script>
+  <script src="js/cuadro.js" defer></script>
+  <script src="js/pdf.js" defer></script>
+  <script src="js/app.js" defer></script>
+</body>
+</html>
