@@ -358,9 +358,13 @@ body:not(.auth-ok) .app-footer { display: none; }
   .form-grid { grid-template-columns: 1fr; }
   .brand h1 { font-size: 1.1rem; }
   .tagline, .vista-actual { display: none; }
+  /* iOS hace zoom automatico en campos con letra menor a 16px */
+  input, select, textarea { font-size: 16px; }
+  .toggle-arbol { width: 2rem; height: 2rem; }
+  .icon-btn { min-width: 2.2rem; min-height: 2.2rem; }
 }
 
-/* Árbol socio -> copilotos */
+/* Arbol socio -> copilotos */
 .fila-copiloto td{background:#fafbfe}
 .arbol-celda{padding-left:2.2rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
 .arbol-rama{color:var(--primary);font-family:Consolas,monospace;font-weight:700}
