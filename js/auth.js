@@ -22,17 +22,17 @@ const Auth = (() => {
   const ROLES = {
     admin: {
       nombre: "Administrador",
-      ver: ["dashboard", "socios", "asambleas", "asistencia", "cuadro"],
-      administrar: ["socios", "asambleas", "asistencia", "cuadro", "respaldo"],
+      ver: ["dashboard", "directiva", "socios", "asambleas", "asistencia", "cuadro", "documentacion"],
+      administrar: ["socios", "copilotos", "asambleas", "asistencia", "cuadro", "respaldo", "documentacion"],
     },
     secretario: {
       nombre: "Secretario",
-      ver: ["dashboard", "socios", "asambleas", "asistencia", "cuadro"],
-      administrar: ["asambleas", "asistencia"],
+      ver: ["dashboard", "directiva", "socios", "asambleas", "asistencia", "cuadro", "documentacion"],
+      administrar: ["asambleas", "asistencia", "documentacion"],
     },
     lectura: {
       nombre: "Lectura",
-      ver: ["dashboard", "socios", "asistencia", "cuadro"],
+      ver: ["dashboard", "directiva", "socios", "asistencia", "cuadro", "documentacion"],
       administrar: [],
     },
   };
@@ -47,7 +47,8 @@ const Auth = (() => {
     if (!user) { _rol = null; _usuario = null; return null; }
     const cedula = (user.email || "").split("@")[0];
     _usuario = { id: user.id, email: user.email, cedula };
-    const { data, error } = await sb().from("perfiles").select("rol").eq("id", user.id).maybeSingle();
+    const { data, error } = await sb().from("perfiles").select("rol, nombre").eq("id", user.id).maybeSingle();
+    _usuario.nombre = (data && data.nombre) || "";
     if (error || !data) { _rol = "lectura"; } // por defecto si no hay perfil aún
     else { _rol = ROLES[data.rol] ? data.rol : "lectura"; }
     return _rol;
@@ -85,10 +86,25 @@ const Auth = (() => {
     return { ok: true };
   }
 
+  // true si el admin definió una clave inicial que el usuario debe reemplazar
+  async function debeCambiarClave() {
+    const { data } = await sb().auth.getUser();
+    const u = data ? data.user : null;
+    return !!(u && u.user_metadata && u.user_metadata.debe_cambiar_clave);
+  }
+
+  // Cambia la clave propia y quita la marca de "clave temporal".
+  async function establecerClavePersonal(nueva) {
+    const { error } = await sb().auth.updateUser({ password: nueva, data: { debe_cambiar_clave: false } });
+    if (error) return { ok: false, error: traducir(error.message) };
+    return { ok: true };
+  }
+
   function traducir(msg) {
     const m = (msg || "").toLowerCase();
     if (m.includes("invalid login")) return "Cédula o contraseña incorrectas.";
     if (m.includes("email not confirmed")) return "El usuario aún no está confirmado.";
+    if (m.includes("different from the old")) return "La nueva contraseña debe ser distinta a la actual.";
     if (m.includes("password should be at least")) return "La contraseña es demasiado corta (mínimo 6 caracteres).";
     return msg;
   }
@@ -105,6 +121,13 @@ const Auth = (() => {
   function puedeAdministrar(modulo) {
     const r = info();
     return !!r && r.administrar.includes(modulo);
+  }
+  // Nombre a mostrar del usuario con sesión: su nombre; si no hay, su cédula o correo.
+  function nombreUsuario() {
+    const u = _usuario;
+    if (!u) return "";
+    if (u.nombre) return u.nombre;
+    return (u.email || "").endsWith("@" + DOMINIO) ? u.cedula : (u.email || u.cedula);
   }
   function nombreRol() {
     const r = info();
@@ -141,8 +164,9 @@ const Auth = (() => {
 
   return {
     ROLES, DOMINIO, cedulaAEmail, cargarSesion, login, logout, cambiarMiPassword,
+    debeCambiarClave, establecerClavePersonal,
     rol, usuario, info, estaAutenticado, puedeVer, puedeAdministrar,
-    nombreRol, accessToken, gestionarAcceso,
+    nombreRol, nombreUsuario, accessToken, gestionarAcceso,
   };
 })();
 window.Auth = Auth;

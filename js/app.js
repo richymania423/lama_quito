@@ -16,8 +16,16 @@ const UI = (() => {
     const btn = document.querySelector(`.nav-btn[data-view="${name}"]`);
     if (view) view.classList.add("active");
     if (btn) btn.classList.add("active");
+    // el encabezado indica en qué sección estás, ya que el menú permanece oculto
+    const etiqueta = document.getElementById("vistaActual");
+    if (etiqueta && btn) {
+      const txt = btn.querySelector(".nav-txt");
+      etiqueta.textContent = txt ? txt.textContent : "";
+    }
     // refresca datos de la vista al entrar
     if (name === "dashboard") Dashboard.render();
+    if (name === "directiva") Directiva.render();
+    if (name === "documentacion") Documentacion.render();
     if (name === "socios") Socios.render();
     if (name === "asambleas") Asambleas.render();
     if (name === "asistencia") Asistencia.render();
@@ -31,7 +39,21 @@ const UI = (() => {
     document.getElementById("modalBody").innerHTML = bodyHtml;
     backdrop().classList.remove("hidden");
   }
-  function closeModal() { backdrop().classList.add("hidden"); }
+  function closeModal() {
+    if (backdrop().dataset.bloqueado) return; // modal obligatorio (cambio de clave)
+    backdrop().classList.add("hidden");
+  }
+  // Modal que no se puede cerrar hasta completar la acción.
+  function openModalObligatorio(title, bodyHtml) {
+    openModal(title, bodyHtml);
+    backdrop().dataset.bloqueado = "1";
+    document.getElementById("modalClose").classList.add("hidden");
+  }
+  function liberarModal() {
+    delete backdrop().dataset.bloqueado;
+    document.getElementById("modalClose").classList.remove("hidden");
+    backdrop().classList.add("hidden");
+  }
 
   // ---------- Toast ----------
   let toastTimer;
@@ -66,6 +88,14 @@ const UI = (() => {
     });
     const sr = document.getElementById("sessionRol");
     if (sr) sr.textContent = "Rol: " + Auth.nombreRol();
+    // usuario que inició sesión, encima del rol
+    const su = document.getElementById("sessionUsuario");
+    if (su) {
+      const quien = Auth.nombreUsuario();
+      su.textContent = quien;
+      const u = Auth.usuario();
+      su.title = u ? (u.nombre ? `${u.nombre} (${u.cedula})` : quien) : "";
+    }
     // panel "Datos y respaldo": visible solo para quien puede administrarlo (admin)
     const panelRespaldo = document.getElementById("panelRespaldo");
     if (panelRespaldo) {
@@ -73,7 +103,7 @@ const UI = (() => {
     }
   }
 
-  return { setView, openModal, closeModal, toast, esc, fmtFecha, MESES, puede, aplicarPermisos };
+  return { setView, openModal, openModalObligatorio, liberarModal, closeModal, toast, esc, fmtFecha, MESES, puede, aplicarPermisos };
 })();
 window.UI = UI;
 
@@ -103,7 +133,7 @@ const Dashboard = (() => {
     document.getElementById("statPromedio").textContent = promedio + "%";
 
     // cumpleañeros del mes en curso
-    renderCumple(socios);
+    await renderCumple(socios);
 
     // últimas asambleas
     const cont = document.getElementById("dashUltimas");
@@ -121,7 +151,7 @@ const Dashboard = (() => {
     }
   }
 
-  function renderCumple(socios) {
+  async function renderCumple(socios) {
     const mesActual = new Date().getMonth(); // 0-11
     document.getElementById("mesCumple").textContent = UI.MESES[mesActual];
 
@@ -140,9 +170,17 @@ const Dashboard = (() => {
       cont.innerHTML = `<p class="muted">No hay socios que cumplan años este mes.</p>`;
       return;
     }
+    // URLs firmadas de las fotos de los cumpleañeros; si falla se muestran iniciales
+    let urls = {};
+    try {
+      urls = await DB.fotos.urls(cumple.map(s => s.fotoPath));
+    } catch (err) {
+      console.warn("No se pudieron obtener las fotos de cumpleañeros:", err);
+    }
+
     cont.innerHTML = cumple.map(s => `
       <div class="item">
-        <span>🎉 <b>${UI.esc(s.nombre)}</b></span>
+        <span class="socio-nombre">${Socios.avatarHtml(s.nombre, urls[s.fotoPath], "avatar-md")}<span>🎉 <b>${UI.esc(s.nombre)}</b></span></span>
         <span class="muted">${String(s.dia).padStart(2, "0")} de ${UI.MESES[mesActual]}</span>
       </div>`).join("");
   }
@@ -188,14 +226,104 @@ async function handleReset() {
   UI.setView("dashboard");
 }
 
+/* ====================== MENÚ LATERAL ====================== */
+// Se abre con el botón "Menú" y se oculta solo: al elegir una opción, al pulsar fuera,
+// con la tecla Esc y, en equipos con ratón, al sacar el puntero del panel.
+const Menu = (() => {
+  let _timer = null;
+  const nav = () => document.getElementById("mainNav");
+  const overlay = () => document.getElementById("navOverlay");
+  const boton = () => document.getElementById("btnMenu");
+  const abierto = () => nav().classList.contains("abierto");
+
+  function abrir() {
+    nav().classList.add("abierto");
+    overlay().classList.add("abierto");
+    boton().setAttribute("aria-expanded", "true");
+    const destino = nav().querySelector(".nav-btn.active:not(.oculto)") || nav().querySelector(".nav-btn:not(.oculto)");
+    if (destino) destino.focus({ preventScroll: true });
+  }
+
+  function cerrar(devolverFoco = false) {
+    clearTimeout(_timer);
+    if (!abierto()) return;
+    nav().classList.remove("abierto");
+    overlay().classList.remove("abierto");
+    boton().setAttribute("aria-expanded", "false");
+    if (devolverFoco) boton().focus({ preventScroll: true });
+  }
+
+  function iniciar() {
+    boton().addEventListener("click", () => (abierto() ? cerrar(true) : abrir()));
+    overlay().addEventListener("click", () => cerrar());
+    document.getElementById("btnCerrarMenu").addEventListener("click", () => cerrar(true));
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && abierto()) cerrar(true);
+    });
+    // con ratón: se oculta solo poco después de sacar el puntero del panel
+    if (window.matchMedia && window.matchMedia("(hover: hover)").matches) {
+      nav().addEventListener("mouseenter", () => clearTimeout(_timer));
+      nav().addEventListener("mouseleave", () => {
+        clearTimeout(_timer);
+        _timer = setTimeout(() => cerrar(), 700);
+      });
+    }
+  }
+
+  return { iniciar, abrir, cerrar };
+})();
+
 /* ====================== LOGIN / SESIÓN ====================== */
 function iniciarSesionUI() {
   document.body.classList.add("auth-ok");
   UI.aplicarPermisos();
   UI.setView("dashboard");
+  // clave inicial asignada por el admin: el usuario debe elegir una personal
+  Auth.debeCambiarClave().then(d => { if (d) pedirClavePersonal(); }).catch(() => {});
+}
+
+function pedirClavePersonal() {
+  UI.openModalObligatorio("Elige tu clave personal", `
+    <form id="formClavePersonal">
+      <p class="muted" style="margin-top:0">Ingresaste con una clave inicial. Por seguridad, define tu propia clave para continuar.</p>
+      <div class="form-field">
+        <label>Nueva contraseña</label>
+        <input type="password" name="nueva" minlength="6" required autocomplete="new-password" placeholder="Mínimo 6 caracteres" />
+      </div>
+      <div class="form-field">
+        <label>Repite la nueva contraseña</label>
+        <input type="password" name="repetir" minlength="6" required autocomplete="new-password" />
+      </div>
+      <p class="login-error" id="claveError"></p>
+      <div class="btn-row">
+        <button type="submit" class="btn">Guardar contraseña</button>
+        <button type="button" class="btn btn-outline" id="claveSalir">Salir</button>
+      </div>
+    </form>`);
+  document.getElementById("claveSalir").addEventListener("click", async () => {
+    UI.liberarModal();
+    await Auth.logout();
+    mostrarLogin();
+  });
+  document.getElementById("formClavePersonal").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const err = document.getElementById("claveError");
+    err.textContent = "";
+    const nueva = fd.get("nueva") || "";
+    if (nueva.length < 6) { err.textContent = "La contraseña debe tener al menos 6 caracteres."; return; }
+    if (nueva !== fd.get("repetir")) { err.textContent = "Las contraseñas no coinciden."; return; }
+    const btn = e.target.querySelector("button[type=submit]");
+    btn.disabled = true;
+    const res = await Auth.establecerClavePersonal(nueva);
+    if (!res.ok) { err.textContent = res.error; btn.disabled = false; return; }
+    UI.liberarModal();
+    UI.toast("Contraseña actualizada.");
+  });
 }
 
 function mostrarLogin() {
+  Menu.cerrar();
   document.body.classList.remove("auth-ok");
   const err = document.getElementById("loginError");
   if (err) err.textContent = "";
@@ -234,9 +362,13 @@ function configurarLogin() {
 
 /* ====================== ARRANQUE ====================== */
 document.addEventListener("DOMContentLoaded", () => {
-  // navegación
+  // navegación (el menú lateral se oculta al elegir una opción)
   document.querySelectorAll(".nav-btn").forEach(btn =>
-    btn.addEventListener("click", () => UI.setView(btn.dataset.view)));
+    btn.addEventListener("click", () => {
+      UI.setView(btn.dataset.view);
+      Menu.cerrar(true);
+    }));
+  Menu.iniciar();
 
   // modal
   document.getElementById("modalClose").addEventListener("click", UI.closeModal);
@@ -254,6 +386,7 @@ document.addEventListener("DOMContentLoaded", () => {
   Asambleas.init();
   Asistencia.init();
   Cuadro.init();
+  Documentacion.init();
 
   // autenticación: restaura sesión o pide login
   configurarLogin();

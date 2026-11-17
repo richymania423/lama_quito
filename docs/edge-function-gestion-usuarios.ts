@@ -113,6 +113,7 @@ Deno.serve(async (req) => {
       case "guardar_acceso": {
         const cedula = String(body.cedula || "").trim();
         const rol = body.rol === "secretario" ? "secretario" : "lectura";
+        const forzar = body.forzarCambio !== false; // por defecto la clave inicial es temporal
         if (!cedula) return json({ error: "La cédula es obligatoria." }, 400);
 
         const existente = await buscarPorCedula(cedula);
@@ -123,7 +124,9 @@ Deno.serve(async (req) => {
           }
           const { data: creado, error } = await admin.auth.admin.createUser({
             email: emailDe(cedula), password: String(body.password),
-            email_confirm: true, user_metadata: { nombre: body.nombre || "" },
+            email_confirm: true,
+            // debe_cambiar_clave: la app obliga a elegir una clave personal en el primer ingreso
+            user_metadata: { nombre: body.nombre || "", debe_cambiar_clave: forzar },
           });
           if (error) throw error;
           await admin.from("perfiles").upsert({
@@ -134,7 +137,10 @@ Deno.serve(async (req) => {
         } else {
           // actualizar rol y, si se envió, la contraseña
           if (body.password && String(body.password).length >= 6) {
-            const { error: e1 } = await admin.auth.admin.updateUserById(existente.id, { password: String(body.password) });
+            const { error: e1 } = await admin.auth.admin.updateUserById(existente.id, {
+              password: String(body.password),
+              user_metadata: { ...(existente.user_metadata || {}), debe_cambiar_clave: forzar },
+            });
             if (e1) throw e1;
           }
           await admin.from("perfiles").upsert({

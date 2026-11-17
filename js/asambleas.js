@@ -35,6 +35,7 @@ const Asambleas = (() => {
         <td>${asis}</td>
         <td class="row-actions">
           <button class="icon-btn" title="Abrir / registrar asistencia" data-open="${a.id}">📝</button>
+          <button class="icon-btn" title="Descargar convocatoria (PDF)" data-conv="${a.id}">📄</button>
           ${puedeEditar ? `
             <button class="icon-btn" title="Editar" data-edit="${a.id}">✏️</button>
             <button class="icon-btn" title="${fechaPasada ? 'No se puede eliminar una asamblea ya realizada' : 'Eliminar'}"
@@ -46,6 +47,17 @@ const Asambleas = (() => {
 
     tbody.querySelectorAll("[data-open]").forEach(b =>
       b.addEventListener("click", () => { Asistencia.abrir(b.dataset.open); UI.setView("asistencia"); }));
+    tbody.querySelectorAll("[data-conv]").forEach(b =>
+      b.addEventListener("click", async () => {
+        const a = _cache.find(x => x.id === b.dataset.conv);
+        if (!a) return;
+        try {
+          await PDF.convocatoria(a);
+        } catch (err) {
+          console.error("Error al generar la convocatoria:", err);
+          UI.toast("No se pudo generar la convocatoria: " + (err.message || err));
+        }
+      }));
     tbody.querySelectorAll("[data-edit]").forEach(b =>
       b.addEventListener("click", () => abrirForm(b.dataset.edit)));
     tbody.querySelectorAll("[data-del]").forEach(b =>

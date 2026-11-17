@@ -36,6 +36,10 @@
   </div>
 
   <header class="app-header">
+    <div class="header-izq">
+    <button type="button" class="btn-menu" id="btnMenu" aria-controls="mainNav" aria-expanded="false" aria-label="Abrir menú">
+      <span class="burger" aria-hidden="true">☰</span><span class="btn-menu-txt">Menú</span>
+    </button>
     <div class="brand">
       <img src="images/logo_lama_quito.png" alt="Logo LAMA Quito" class="brand-logo" />
       <div>
@@ -43,18 +47,33 @@
         <p class="tagline">Gestión de asambleas del grupo</p>
       </div>
     </div>
-    <nav class="main-nav" id="mainNav">
-      <button class="nav-btn active" data-view="dashboard">Inicio</button>
-      <button class="nav-btn" data-view="socios">Socios</button>
-      <button class="nav-btn" data-view="asambleas">Asambleas</button>
-      <button class="nav-btn" data-view="asistencia">Asistencia</button>
-      <button class="nav-btn" data-view="cuadro">Cuadro anual</button>
-    </nav>
+    </div>
+    <span class="vista-actual" id="vistaActual"></span>
     <div class="session-box">
-      <span class="session-rol" id="sessionRol"></span>
+      <div class="session-info">
+        <span class="session-usuario" id="sessionUsuario"></span>
+        <span class="session-rol" id="sessionRol"></span>
+      </div>
       <button class="btn btn-sm btn-outline" id="btnLogout">Salir</button>
     </div>
   </header>
+
+  <!-- ===================== MENÚ LATERAL (se oculta solo) ===================== -->
+  <div class="nav-overlay" id="navOverlay"></div>
+  <nav class="main-nav" id="mainNav" aria-label="Menú principal">
+    <div class="nav-cabecera">
+      <img src="images/logo_lama_quito.png" alt="" class="brand-logo" />
+      <span class="nav-cabecera-txt">Menú</span>
+      <button type="button" class="nav-cerrar" id="btnCerrarMenu" aria-label="Cerrar menú">&times;</button>
+    </div>
+    <button class="nav-btn active" data-view="dashboard"><span class="nav-ico" aria-hidden="true">🏠</span><span class="nav-txt">Inicio</span></button>
+    <button class="nav-btn" data-view="directiva"><span class="nav-ico" aria-hidden="true">🏛️</span><span class="nav-txt">Directiva de Capítulo</span></button>
+    <button class="nav-btn" data-view="socios"><span class="nav-ico" aria-hidden="true">👥</span><span class="nav-txt">Socios</span></button>
+    <button class="nav-btn" data-view="asambleas"><span class="nav-ico" aria-hidden="true">📅</span><span class="nav-txt">Asambleas</span></button>
+    <button class="nav-btn" data-view="asistencia"><span class="nav-ico" aria-hidden="true">✅</span><span class="nav-txt">Asistencia</span></button>
+    <button class="nav-btn" data-view="cuadro"><span class="nav-ico" aria-hidden="true">📊</span><span class="nav-txt">Cuadro anual</span></button>
+    <button class="nav-btn" data-view="documentacion"><span class="nav-ico" aria-hidden="true">📁</span><span class="nav-txt">Documentación</span></button>
+  </nav>
 
   <main class="app-main" id="appMain">
     <!-- ===================== DASHBOARD ===================== -->
@@ -103,14 +122,22 @@
       </div>
     </section>
 
+    <!-- ===================== DIRECTIVA DE CAPÍTULO ===================== -->
+    <section class="view" id="view-directiva">
+      <div class="view-head">
+        <h2>Directiva de Capítulo</h2>
+      </div>
+      <div id="directivaContenido"></div>
+    </section>
+
     <!-- ===================== SOCIOS ===================== -->
     <section class="view" id="view-socios">
       <div class="view-head">
         <h2>Listado de socios</h2>
-        <button class="btn" id="btnNuevoSocio">+ Nuevo socio</button>
+        <div class="btn-row"><button class="btn" id="btnNuevoSocio">+ Nuevo socio</button><button class="btn btn-outline" id="btnNuevoCopiloto">👤 Ingresar copiloto</button><button class="btn btn-outline" id="btnNuevaMoto">🏍️ Ingresar motocicleta</button></div>
       </div>
       <div class="toolbar">
-        <input type="search" id="buscarSocio" placeholder="Buscar socio por nombre o cédula..." />
+        <input type="search" id="buscarSocio" placeholder="Buscar por socio, cédula, copiloto o placa..." />
       </div>
       <div class="table-wrap">
         <table class="data-table" id="tablaSocios">
@@ -166,6 +193,9 @@
         <div class="panel">
           <h3>Datos de la asamblea</h3>
           <div class="asamblea-meta" id="asambleaMeta"></div>
+          <div class="btn-row">
+            <button class="btn btn-outline" id="btnConvocatoria">📄 Descargar convocatoria (PDF)</button>
+          </div>
         </div>
 
         <div class="panel">
@@ -225,9 +255,12 @@
         <h2>Cuadro de asistencias anual</h2>
         <div class="btn-row">
           <select id="selectorAnio"></select>
-          <button class="btn btn-sm" id="btnPDFCuadro">📄 Exportar cuadro PDF</button>
+          <button class="btn btn-sm" id="btnPDFCuadro">📄 Descargar Indicadores de Participación (PDF)</button>
         </div>
       </div>
+      <div id="cuadroIndicadores"></div>
+
+      <h3 class="cuadro-subtitulo">Detalle por asamblea</h3>
       <div class="table-wrap">
         <table class="data-table cuadro-table" id="tablaCuadro">
           <thead></thead>
@@ -235,7 +268,32 @@
         </table>
       </div>
     </section>
-
+    <!-- ===================== DOCUMENTACIÓN ===================== -->
+    <section class="view" id="view-documentacion">
+      <div class="view-head">
+        <h2>Documentación</h2>
+        <button class="btn" id="btnNuevoDoc">+ Subir documento</button>
+      </div>
+      <p class="muted">Estatutos, reglamentos y otros documentos del capítulo para consultar y descargar.</p>
+      <div class="toolbar toolbar-doc">
+        <input type="search" id="buscarDoc" placeholder="Buscar documento..." />
+        <select id="filtroCategoria"></select>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tablaDocumentos">
+          <thead>
+            <tr>
+              <th>Documento</th>
+              <th>Categoría</th>
+              <th>Archivo</th>
+              <th>Fecha</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
   </main>
 
   <!-- ===================== MODAL GENÉRICO ===================== -->
@@ -263,6 +321,10 @@
   <script src="js/asambleas.js" defer></script>
   <script src="js/asistencia.js" defer></script>
   <script src="js/cuadro.js" defer></script>
+  <script src="js/directiva.js" defer></script>
+  <script src="js/documentos.js" defer></script>
+  <script src="js/copilotos.js" defer></script>
+  <script src="js/motos.js" defer></script>
   <script src="js/pdf.js" defer></script>
   <script src="js/app.js" defer></script>
 </body>

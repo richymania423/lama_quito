@@ -43,6 +43,8 @@ const DB = (() => {
     fechaNacimiento: r.fecha_nacimiento || "",
     tipoSangre: r.tipo_sangre || "",
     sectorResidencia: r.sector_residencia || "",
+    fotoPath: r.foto_path || "",
+    rango: r.rango || "",
     activo: r.activo !== false,
     creado: r.creado,
   });
@@ -86,6 +88,8 @@ const DB = (() => {
         fecha_nacimiento: d.fechaNacimiento || null,
         tipo_sangre: d.tipoSangre || "",
         sector_residencia: (d.sectorResidencia || "").trim(),
+        foto_path: d.fotoPath || null,
+        rango: d.rango || null,
         activo: d.activo !== false,
         creado: d.creado || new Date().toISOString(),
       };
@@ -96,6 +100,186 @@ const DB = (() => {
     eliminar: async (id) => {
       const { error } = await sb.from("socios").delete().eq("id", id);
       check(error);
+    },
+  };
+
+  // ====================== COPILOTOS ======================
+  const copilotoDesde = (r) => ({
+    id: r.id,
+    nombre: r.nombre || "",
+    parentesco: r.parentesco || "",
+    tipoSangre: r.tipo_sangre || "",
+    fechaNacimiento: r.fecha_nacimiento || "",
+    socioId: r.socio_id || "",   // socio con quien tiene afinidad
+    creado: r.creado,
+  });
+
+  const copilotos = {
+    listar: async () => {
+      const { data, error } = await sb.from("copilotos").select("*").order("nombre", { ascending: true });
+      check(error);
+      return (data || []).map(copilotoDesde);
+    },
+    guardar: async (d) => {
+      const fila = {
+        id: d.id || uid(),
+        nombre: (d.nombre || "").trim(),
+        parentesco: d.parentesco || null,
+        tipo_sangre: d.tipoSangre || null,
+        fecha_nacimiento: d.fechaNacimiento || null,
+        socio_id: d.socioId || null,
+        creado: d.creado || new Date().toISOString(),
+      };
+      const { data, error } = await sb.from("copilotos").upsert(fila).select().single();
+      check(error);
+      return copilotoDesde(data);
+    },
+    eliminar: async (id) => {
+      const { error } = await sb.from("copilotos").delete().eq("id", id);
+      check(error);
+    },
+  };
+
+  // ====================== MOTOCICLETAS ======================
+  const motoDesde = (r) => ({
+    id: r.id,
+    marca: r.marca || "",
+    modelo: r.modelo || "",
+    color: r.color || "",
+    anio: r.anio == null ? "" : r.anio,
+    cilindraje: r.cilindraje == null ? "" : r.cilindraje,
+    placa: r.placa || "",
+    socioId: r.socio_id || "",
+    creado: r.creado,
+  });
+
+  const entOpc = (v) => (v === "" || v == null || isNaN(Number(v)) ? null : Math.trunc(Number(v)));
+
+  const motos = {
+    listar: async () => {
+      const { data, error } = await sb.from("motos").select("*").order("marca", { ascending: true });
+      check(error);
+      return (data || []).map(motoDesde);
+    },
+    guardar: async (d) => {
+      const fila = {
+        id: d.id || uid(),
+        marca: (d.marca || "").trim(),
+        modelo: (d.modelo || "").trim() || null,
+        color: (d.color || "").trim() || null,
+        anio: entOpc(d.anio),
+        cilindraje: entOpc(d.cilindraje),
+        placa: (d.placa || "").trim().toUpperCase() || null,
+        socio_id: d.socioId || null,
+        creado: d.creado || new Date().toISOString(),
+      };
+      const { data, error } = await sb.from("motos").upsert(fila).select().single();
+      check(error);
+      return motoDesde(data);
+    },
+    eliminar: async (id) => {
+      const { error } = await sb.from("motos").delete().eq("id", id);
+      check(error);
+    },
+  };
+
+  // ====================== DOCUMENTOS (tabla + Storage, bucket privado) ======================
+  const BUCKET_DOCS = "documentos";
+
+  const documentoDesde = (r) => ({
+    id: r.id,
+    titulo: r.titulo || "",
+    descripcion: r.descripcion || "",
+    categoria: r.categoria || "Otros",
+    archivoPath: r.archivo_path || "",
+    nombreArchivo: r.nombre_archivo || "",
+    mime: r.mime || "",
+    tamano: Number(r.tamano) || 0,
+    subidoPor: r.subido_por || "",
+    creado: r.creado,
+  });
+
+  // Quita tildes y caracteres que Storage no acepta en el nombre guardado
+  const nombreSeguro = (nombre) =>
+    String(nombre || "archivo")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^A-Za-z0-9._-]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "archivo";
+
+  const documentos = {
+    listar: async () => {
+      const { data, error } = await sb.from("documentos").select("*").order("creado", { ascending: false });
+      check(error);
+      return (data || []).map(documentoDesde);
+    },
+    // Sube el archivo al bucket y devuelve su ruta
+    subirArchivo: async (id, file, mime) => {
+      const path = `${id}/${nombreSeguro(file.name)}`;
+      const { error } = await sb.storage.from(BUCKET_DOCS)
+        .upload(path, file, { contentType: mime, upsert: false });
+      check(error);
+      return path;
+    },
+    guardar: async (d) => {
+      const fila = {
+        id: d.id || uid(),
+        titulo: (d.titulo || "").trim(),
+        descripcion: (d.descripcion || "").trim() || null,
+        categoria: d.categoria || "Otros",
+        archivo_path: d.archivoPath,
+        nombre_archivo: d.nombreArchivo || null,
+        mime: d.mime || null,
+        tamano: d.tamano || null,
+        subido_por: d.subidoPor || null,
+        creado: d.creado || new Date().toISOString(),
+      };
+      const { data, error } = await sb.from("documentos").upsert(fila).select().single();
+      check(error);
+      return documentoDesde(data);
+    },
+    eliminarArchivo: async (path) => {
+      if (!path) return;
+      const { error } = await sb.storage.from(BUCKET_DOCS).remove([path]);
+      check(error);
+    },
+    eliminar: async (id) => {
+      const { error } = await sb.from("documentos").delete().eq("id", id);
+      check(error);
+    },
+    // URL firmada temporal (5 min). Con "descargar" el navegador baja el archivo con su nombre original.
+    url: async (path, { descargar = false, nombre = "" } = {}) => {
+      const opciones = descargar ? { download: nombre || true } : undefined;
+      const { data, error } = await sb.storage.from(BUCKET_DOCS).createSignedUrl(path, 300, opciones);
+      check(error);
+      return data.signedUrl;
+    },
+  };
+
+  // ====================== FOTOS (Storage, bucket privado) ======================
+  const BUCKET_FOTOS = "fotos-socios";
+  const fotos = {
+    // Sube la imagen con un nombre único; devuelve la ruta para guardarla en el socio.
+    subir: async (socioId, blob) => {
+      const path = `${socioId}/${Date.now()}.jpg`;
+      const { error } = await sb.storage.from(BUCKET_FOTOS)
+        .upload(path, blob, { contentType: "image/jpeg", upsert: false });
+      check(error);
+      return path;
+    },
+    eliminar: async (path) => {
+      if (!path) return;
+      const { error } = await sb.storage.from(BUCKET_FOTOS).remove([path]);
+      check(error);
+    },
+    // Devuelve { ruta: urlFirmada } válidas por 1 hora.
+    urls: async (paths) => {
+      const lista = [...new Set((paths || []).filter(Boolean))];
+      if (!lista.length) return {};
+      const { data, error } = await sb.storage.from(BUCKET_FOTOS).createSignedUrls(lista, 3600);
+      check(error);
+      const mapa = {};
+      (data || []).forEach((x) => { if (x.signedUrl) mapa[x.path] = x.signedUrl; });
+      return mapa;
     },
   };
 
@@ -194,7 +378,7 @@ const DB = (() => {
     await sb.from("socios").delete().neq("id", "");
   }
 
-  return { socios, asambleas, asistencia, exportar, importar, borrarTodo, _uid: uid, _sb: sb };
+  return { socios, copilotos, motos, fotos, documentos, asambleas, asistencia, exportar, importar, borrarTodo, _uid: uid, _sb: sb };
 })();
 
 window.DB = DB;

@@ -200,6 +200,16 @@ const Asistencia = (() => {
     document.getElementById("btnGuardarTemas").addEventListener("click", guardarTemas);
     document.getElementById("btnMarcarTodos").addEventListener("click", () => marcarTodos(true));
     document.getElementById("btnDesmarcarTodos").addEventListener("click", () => marcarTodos(false));
+    // Convocatoria: disponible para todos los roles que ven este módulo
+    document.getElementById("btnConvocatoria").addEventListener("click", async () => {
+      if (!_asamblea) return UI.toast("Selecciona una asamblea primero.");
+      try {
+        await PDF.convocatoria(_asamblea);
+      } catch (err) {
+        console.error("Error al generar la convocatoria:", err);
+        UI.toast("No se pudo generar la convocatoria: " + (err.message || err));
+      }
+    });
     document.getElementById("btnGenerarPDF").addEventListener("click", () => {
       if (!_asamblea) return UI.toast("Selecciona una asamblea primero.");
       PDF.actaAsamblea(datosParaPDF());
