@@ -25,3 +25,6 @@ respaldo-secretario-lama-*.json
 # Logs
 *.log
 npm-debug.log*
+
+# Herramientas locales para generar los manuales PDF (demo con datos ficticios, capturas, scripts)
+_manual/
