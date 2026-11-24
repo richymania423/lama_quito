@@ -4,24 +4,56 @@
  */
 const Asambleas = (() => {
   let _cache = [];
+  let _asistencia = [];
+  let _anio = String(new Date().getFullYear()); // filtro de año; por defecto el año en curso
   let _ordenDia = []; // puntos del orden del día en edición dentro del form
+
+  const SIN_FECHA = "sin-fecha";
+  const anioDe = (a) => (a.fecha ? a.fecha.slice(0, 4) : SIN_FECHA);
 
   async function render() {
     const [asambleas, asistencia] = await Promise.all([
       DB.asambleas.listar(), DB.asistencia.todos(),
     ]);
     _cache = asambleas;
-    const puedeEditar = UI.puede("asambleas");
+    _asistencia = asistencia;
     const btnNueva = document.getElementById("btnNuevaAsamblea");
-    if (btnNueva) btnNueva.style.display = puedeEditar ? "" : "none";
+    if (btnNueva) btnNueva.style.display = UI.puede("asambleas") ? "" : "none";
+    pintarFiltroAnio();
+    paint();
+  }
+
+  // Años disponibles según las asambleas registradas, más el año en curso (orden descendente)
+  function pintarFiltroAnio() {
+    const sel = document.getElementById("filtroAnioAsambleas");
+    if (!sel) return;
+    const actual = String(new Date().getFullYear());
+    const anios = new Set([actual, ..._cache.map(anioDe).filter(x => x !== SIN_FECHA)]);
+    const lista = [...anios].sort((x, y) => y.localeCompare(x));
+    if (_cache.some(a => !a.fecha)) lista.push(SIN_FECHA);
+    if (!lista.includes(_anio)) _anio = actual;
+    sel.innerHTML = lista.map(y =>
+      `<option value="${y}" ${y === _anio ? "selected" : ""}>${y === SIN_FECHA ? "Sin fecha" : y}</option>`).join("");
+  }
+
+  function paint() {
+    const puedeEditar = UI.puede("asambleas");
     const tbody = document.querySelector("#tablaAsambleas tbody");
 
-    if (!asambleas.length) {
+    if (!_cache.length) {
       tbody.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:1.5rem">
         No hay asambleas. Crea la primera con “+ Nueva asamblea”.</td></tr>`;
       return;
     }
 
+    const asambleas = _cache.filter(a => anioDe(a) === _anio);
+    if (!asambleas.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:1.5rem">
+        No hay asambleas registradas en ${UI.esc(_anio)}.</td></tr>`;
+      return;
+    }
+
+    const asistencia = _asistencia;
     const hoy = new Date().toISOString().slice(0, 10);
     tbody.innerHTML = asambleas.map(a => {
       const asis = asistencia.filter(x => x.asambleaId === a.id && x.presente).length;
@@ -93,6 +125,10 @@ const Asambleas = (() => {
           <select name="mesCorrespondencia">${opcionesMes}</select>
         </div>
         <div class="form-field">
+          <label><input type="checkbox" name="extraordinaria" style="width:auto;margin-right:.4rem" ${a && a.extraordinaria ? "checked" : ""} /> Asamblea extraordinaria</label>
+          <small class="muted">Sin marcar, la asamblea es Ordinaria.</small>
+        </div>
+        <div class="form-field">
           <label>Orden del día</label>
           <div class="orden-editor">
             <div class="orden-add">
@@ -138,11 +174,13 @@ const Asambleas = (() => {
           lugar: fd.get("lugar"),
           mesCorrespondencia: fd.get("mesCorrespondencia"),
           ordenDia: [..._ordenDia],
+          extraordinaria: fd.get("extraordinaria") === "on",
           temas: a ? a.temas : "",
           creado: a ? a.creado : undefined,
         });
         UI.closeModal();
         UI.toast(a ? "Asamblea actualizada." : "Asamblea creada.");
+        _anio = String(fd.get("fecha")).slice(0, 4); // muestra el año de la asamblea guardada
         render();
       } catch (err) {
         console.error("Error al guardar asamblea:", err);
@@ -196,6 +234,8 @@ const Asambleas = (() => {
 
   function init() {
     document.getElementById("btnNuevaAsamblea").addEventListener("click", () => abrirForm(null));
+    const sel = document.getElementById("filtroAnioAsambleas");
+    if (sel) sel.addEventListener("change", () => { _anio = sel.value; paint(); });
   }
 
   return { init, render };

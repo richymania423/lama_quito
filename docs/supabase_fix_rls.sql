@@ -1,5 +1,5 @@
 -- =====================================================================
--- CORRECCIÓN DE PERMISOS (RLS) · Secretario LAMA
+-- CORRECCIÓN DE PERMISOS (RLS) · LAMA QuitoConnect
 -- Ejecuta este script en: Supabase -> SQL Editor -> New query -> Run
 -- Soluciona el error: "permission denied for table socios" (42501)
 --

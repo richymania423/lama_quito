@@ -87,7 +87,7 @@ No incluye envío de mensajes (por ejemplo WhatsApp) por decisión expresa del c
 ## 3. Estructura del proyecto
 
 ```
-SECRETARIO_LAMA/
+lama_quito/
 ├── index.html                  Interfaz completa (login, menú, vistas, modal)
 ├── css/styles.css              Estilos (incluye vista móvil y árbol de socios)
 ├── images/logo_lama_quito.png  Logo del capítulo
@@ -311,7 +311,7 @@ Vista de solo lectura. Muestra los seis cargos con foto, nombre y cargo: Preside
 
 ### 6.10 Datos y respaldo (solo admin)
 
-- **Exportar respaldo (JSON):** archivo `respaldo-secretario-lama-AAAA-MM-DD.json` con `version`, `exportado`, `socios`, `asambleas` y `asistencia`.
+- **Exportar respaldo (JSON):** archivo `respaldo-lama-quitoconnect-AAAA-MM-DD.json` con `version`, `exportado`, `socios`, `asambleas` y `asistencia`.
 - **Importar respaldo:** mezcla los registros por id. No borra nada y no pide confirmación.
 - **Borrar todo:** pide confirmación y elimina asistencia, asambleas y socios.
 - **El respaldo no incluye** copilotos, motocicletas, documentos, fotos ni usuarios. **"Borrar todo" tampoco los elimina.** Ver la sección 11.

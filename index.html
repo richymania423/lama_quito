@@ -115,7 +115,7 @@
           <button class="btn" id="btnExport">Exportar respaldo (JSON)</button>
           <label class="btn btn-outline">
             Importar respaldo
-            <input type="file" id="fileImport" accept="application/json" hidden />
+            <input type="file" id="fileImport" accept="application/json,.json" hidden />
           </label>
           <button class="btn btn-danger btn-outline" id="btnReset">Borrar todo</button>
         </div>
@@ -161,7 +161,11 @@
     <section class="view" id="view-asambleas">
       <div class="view-head">
         <h2>Asambleas</h2>
-        <button class="btn" id="btnNuevaAsamblea">+ Nueva asamblea</button>
+        <div class="btn-row">
+          <label for="filtroAnioAsambleas" class="muted" style="font-weight:600">Año</label>
+          <select id="filtroAnioAsambleas" style="width:auto;min-width:110px" aria-label="Filtrar asambleas por año"></select>
+          <button class="btn" id="btnNuevaAsamblea">+ Nueva asamblea</button>
+        </div>
       </div>
       <div class="table-wrap">
         <table class="data-table" id="tablaAsambleas">
@@ -208,7 +212,8 @@
 
         <div class="panel">
           <h3>Temas principales tratados</h3>
-          <textarea id="temasTratados" rows="6" placeholder="Describe los temas principales tratados en la asamblea..."></textarea>
+          <textarea id="temasTratados" rows="6" style="resize:vertical" placeholder="Describe los temas principales tratados en la asamblea..."></textarea>
+          <p class="muted" style="margin:.3rem 0 .6rem;font-size:.85rem">Usa Enter para separar los temas en líneas o párrafos; se respetan en el acta.</p>
           <div class="btn-row">
             <button class="btn btn-sm" id="btnGuardarTemas">Guardar temas</button>
             <span class="save-hint" id="temasHint"></span>
@@ -242,7 +247,7 @@
         <div class="panel">
           <h3>Documento final</h3>
           <p class="muted">Genera el acta/reporte en PDF con el listado de asistentes y el resumen de temas tratados.</p>
-          <button class="btn" id="btnGenerarPDF">📄 Generar PDF de la asamblea</button>
+          <button class="btn" id="btnGenerarPDF">📄 Descargar acta de asamblea</button>
         </div>
       </div>
 

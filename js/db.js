@@ -1,5 +1,5 @@
 /**
- * db.js — Capa de datos de Secretario LAMA (Supabase)
+ * db.js — Capa de datos de LAMA QuitoConnect (Supabase)
  * -------------------------------------------------------------
  * Usa Supabase (PostgreSQL) como almacén en la nube. Mantiene el
  * MISMO contrato público (window.DB) que la versión IndexedDB, por
@@ -56,6 +56,7 @@ const DB = (() => {
     mesCorrespondencia: r.mes_correspondencia || "",
     ordenDia: Array.isArray(r.orden_dia) ? r.orden_dia : (r.orden_dia || []),
     temas: r.temas || "",
+    extraordinaria: r.extraordinaria === true,   // false = Ordinaria (por defecto)
     creado: r.creado,
   });
   const asistenciaDesde = (r) => ({
@@ -304,9 +305,19 @@ const DB = (() => {
         mes_correspondencia: d.mesCorrespondencia || "",
         orden_dia: Array.isArray(d.ordenDia) ? d.ordenDia : [],
         temas: d.temas || "",
+        extraordinaria: d.extraordinaria === true,
         creado: d.creado || new Date().toISOString(),
       };
-      const { data, error } = await sb.from("asambleas").upsert(fila).select().single();
+      let { data, error } = await sb.from("asambleas").upsert(fila).select().single();
+      // Si aún no se ejecutó docs/supabase_asambleas_extraordinaria.sql, la columna no existe:
+      // una asamblea Ordinaria se guarda igual; una Extraordinaria avisa qué falta.
+      if (error && /extraordinaria/i.test(error.message || "")) {
+        if (fila.extraordinaria) {
+          throw new Error("Para guardar asambleas extraordinarias, ejecuta primero docs/supabase_asambleas_extraordinaria.sql en Supabase.");
+        }
+        delete fila.extraordinaria;
+        ({ data, error } = await sb.from("asambleas").upsert(fila).select().single());
+      }
       check(error);
       return asambleaDesde(data);
     },

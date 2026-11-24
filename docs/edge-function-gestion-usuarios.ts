@@ -1,6 +1,6 @@
 // =====================================================================
 // Edge Function: gestion-usuarios
-// Secretario LAMA · Gestión de acceso de socios (solo admin)
+// LAMA QuitoConnect · Gestión de acceso de socios (solo admin)
 // =====================================================================
 // Login por CÉDULA: cada socio con acceso es un usuario de Supabase Auth
 // con email sintético "<cedula>@lama.app". El rol (secretario/lectura) se

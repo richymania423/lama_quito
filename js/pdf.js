@@ -1,6 +1,6 @@
 /**
  * pdf.js — Generación de documentos PDF con jsPDF + autotable.
- *  - actaAsamblea(data): acta con datos, orden del día, temas y listado de asistentes.
+ *  - actaAsamblea(data): acta con el mismo estilo de la convocatoria (marco, logo, Cinzel).
  *  - cuadroAnual(data):  cuadro de asistencias de socios durante el año.
  */
 const PDF = (() => {
@@ -64,116 +64,183 @@ const PDF = (() => {
   }
 
   // ====================== ACTA DE ASAMBLEA ======================
-  function actaAsamblea(data) {
+  // Mismo estilo que la convocatoria: marco doble azul/dorado, logo centrado, ornamento,
+  // título en Cinzel Decorative, textos en Times y acentos dorados.
+  async function actaAsamblea(data) {
     if (!window.jspdf) return UI.toast("Cargando librería PDF, intenta de nuevo en un momento.");
     const { asamblea: a, presentes, ausentes, socios, asis } = data;
     const doc = nuevoDoc("p");
+    const fTitulo = await cargarFuenteTitulo(doc);
+    const fuenteTitulo = (tam) => { doc.setFont(fTitulo || "times", "bold"); doc.setFontSize(tam); };
 
-    encabezado(doc, "Acta de Asamblea", "L.A.M.A. Capítulo Quito · Documento oficial del grupo");
-    let y = 30;
+    const W = doc.internal.pageSize.getWidth();
+    const H = doc.internal.pageSize.getHeight();
+    const MX = 22;                       // margen interior (dentro del marco)
+    const ANCHO = W - 2 * MX;
+    const FS = "times", TAM = 11.5, LH = 6.4;
+    const ARRIBA = 22, ABAJO = 24;       // zona útil en páginas siguientes
+    const CREMA = [250, 246, 236];
+    const tipo = a.extraordinaria ? "Extraordinaria" : "Ordinaria";
+    const obs = (s) => (asis[s.id] && asis[s.id].observacion) || "";
 
-    // --- Datos de la asamblea ---
-    doc.autoTable({
-      startY: y,
-      theme: "plain",
-      body: [
-        ["Fecha:", UI.fmtFecha(a.fecha), "Hora:", a.hora || "—"],
-        ["Lugar:", a.lugar || "—", "Mes correspondencia:", a.mesCorrespondencia || "—"],
-      ],
-      styles: { fontSize: 10, cellPadding: 1.5 },
-      columnStyles: {
-        0: { fontStyle: "bold", cellWidth: 25 },
-        2: { fontStyle: "bold", cellWidth: 40 },
-      },
-    });
-    y = doc.lastAutoTable.finalY + 6;
+    const nuevaPagina = () => { doc.addPage(); marco(doc); return ARRIBA + 4; };
+    const asegurar = (y, alto) => (y + alto > H - ABAJO ? nuevaPagina() : y);
 
-    // --- Orden del día ---
-    doc.setFont("helvetica", "bold"); doc.setFontSize(12);
-    doc.text("Orden del día", 14, y); y += 2;
-    const puntos = (a.ordenDia && a.ordenDia.length)
-      ? a.ordenDia.map((p, i) => [`${i + 1}.`, p])
-      : [["—", "No se registraron puntos."]];
-    doc.autoTable({
-      startY: y + 2,
-      theme: "striped",
-      head: [["#", "Punto"]],
-      body: puntos,
-      headStyles: { fillColor: AZUL },
-      styles: { fontSize: 10, cellPadding: 2 },
-      columnStyles: { 0: { cellWidth: 12 } },
-    });
-    y = doc.lastAutoTable.finalY + 6;
+    // Título de sección: azul, con línea dorada debajo
+    const seccion = (y, texto) => {
+      y = asegurar(y, 22);
+      doc.setFont(FS, "bold"); doc.setFontSize(13.5); doc.setTextColor(...NAVY);
+      doc.text(texto, MX, y);
+      doc.setDrawColor(...ORO); doc.setLineWidth(0.45);
+      doc.line(MX, y + 1.8, MX + ANCHO, y + 1.8);
+      doc.setTextColor(...TEXTO);
+      return y + 8;
+    };
 
-    // --- Temas tratados ---
-    doc.setFont("helvetica", "bold"); doc.setFontSize(12);
-    doc.text("Temas principales tratados", 14, y); y += 5;
-    doc.setFont("helvetica", "normal"); doc.setFontSize(10);
-    const texto = (a.temas && a.temas.trim()) ? a.temas.trim() : "No se registró un resumen de temas.";
-    const lineas = doc.splitTextToSize(texto, doc.internal.pageSize.getWidth() - 28);
-    doc.text(lineas, 14, y);
-    y += lineas.length * 5 + 6;
-
-    // --- Resumen de asistencia ---
-    doc.setFont("helvetica", "bold"); doc.setFontSize(12);
-    doc.text("Resumen de asistencia", 14, y); y += 2;
-    const total = socios.length;
-    const pct = total ? Math.round((presentes.length / total) * 100) : 0;
-    doc.autoTable({
-      startY: y + 2,
-      theme: "plain",
-      body: [[
-        `Presentes: ${presentes.length}`,
-        `Ausentes: ${ausentes.length}`,
-        `Total socios activos: ${total}`,
-        `Asistencia: ${pct}%`,
-      ]],
-      styles: { fontSize: 10, cellPadding: 1.5, fontStyle: "bold" },
-    });
-    y = doc.lastAutoTable.finalY + 4;
-
-    // --- Listado de asistentes (presentes) ---
-    doc.autoTable({
-      startY: y,
-      head: [["#", "Socio presente", "Observación"]],
-      body: presentes.length
-        ? presentes.map((s, i) => [i + 1, s.nombre,
-            (asis[s.id] && asis[s.id].observacion) || ""])
-        : [["—", "Sin asistentes registrados", ""]],
-      headStyles: { fillColor: AZUL },
-      styles: { fontSize: 9, cellPadding: 2 },
-      columnStyles: { 0: { cellWidth: 12 } },
-    });
-    y = doc.lastAutoTable.finalY + 4;
-
-    // --- Ausentes ---
-    if (ausentes.length) {
+    // Estilo común de tablas (Times, cabecera de color, filas alternas color crema)
+    const tabla = (y, cabecera, filas, colorCab) => {
+      y = asegurar(y, 30);   // evita dejar la cabecera sola al pie de la página
       doc.autoTable({
         startY: y,
-        head: [["#", "Socio ausente", "Observación"]],
-        body: ausentes.map((s, i) => [i + 1, s.nombre, (asis[s.id] && asis[s.id].observacion) || ""]),
-        headStyles: { fillColor: GRIS },
-        styles: { fontSize: 9, cellPadding: 2 },
-        columnStyles: { 0: { cellWidth: 12 } },
+        head: [cabecera],
+        body: filas,
+        theme: "grid",
+        margin: { left: MX, right: MX, top: ARRIBA + 4, bottom: ABAJO },
+        styles: { font: FS, fontSize: 10.5, cellPadding: 2.2, textColor: TEXTO, lineColor: [226, 214, 182], lineWidth: 0.2 },
+        headStyles: { fillColor: colorCab, textColor: [255, 255, 255], fontStyle: "bold", lineColor: colorCab },
+        alternateRowStyles: { fillColor: CREMA },
+        columnStyles: { 0: { cellWidth: 12, halign: "center", textColor: ORO, fontStyle: "bold" } },
+        // las páginas que agrega la tabla también llevan el marco
+        didDrawPage: (d) => { if (d.pageNumber > 1) marco(doc); },
       });
-      y = doc.lastAutoTable.finalY + 10;
+      return doc.lastAutoTable.finalY + 8;
+    };
+
+    marco(doc);
+
+    // --- Logo centrado ---
+    let y = 18;
+    if (_logoDataUrl) {
+      const alto = 26, ancho = alto * _logoRatio;
+      try { doc.addImage(_logoDataUrl, "PNG", (W - ancho) / 2, y, ancho, alto); } catch (e) { /* sin logo */ }
+      y += alto + 5;
     } else {
       y += 6;
     }
 
-    // --- Firmas ---
-    const w = doc.internal.pageSize.getWidth();
-    if (y > doc.internal.pageSize.getHeight() - 30) { doc.addPage(); y = 30; }
-    // Una sola firma, centrada
-    doc.setDrawColor(...GRIS);
-    doc.line(w / 2 - 40, y + 12, w / 2 + 40, y + 12);
-    doc.setFontSize(10); doc.setTextColor(...GRIS);
-    doc.text("Directiva LAMA Quito", w / 2, y + 18, { align: "center" });
+    // --- Ornamento dorado ---
+    doc.setDrawColor(...ORO); doc.setLineWidth(0.5);
+    doc.line(W / 2 - 45, y, W / 2 - 4, y);
+    doc.line(W / 2 + 4, y, W / 2 + 45, y);
+    doc.setFillColor(...ORO);
+    doc.triangle(W / 2, y - 2, W / 2 + 2, y, W / 2, y + 2, "F");
+    doc.triangle(W / 2, y - 2, W / 2 - 2, y, W / 2, y + 2, "F");
+    y += 11;
 
-    pie(doc);
-    const nombre = `acta-asamblea-${a.fecha || "sinfecha"}.pdf`;
-    doc.save(nombre);
-    UI.toast("PDF del acta generado.");
+    // --- Título ---
+    fuenteTitulo(30);
+    doc.setTextColor(...NAVY);
+    doc.text("ACTA", W / 2, y, { align: "center" });
+    y += 8;
+    doc.setFont("times", "italic"); doc.setFontSize(14); doc.setTextColor(...ORO);
+    doc.text(`Asamblea ${tipo}`, W / 2, y, { align: "center" });
+    y += 5.5;
+    doc.setFont("times", "normal"); doc.setFontSize(9.5); doc.setTextColor(...GRIS);
+    doc.text("L.A.M.A. Capítulo Quito · Documento oficial del grupo", W / 2, y, { align: "center" });
+    y += 11;
+
+    // --- Párrafo de apertura ---
+    const total = socios.length;
+    const pct = total ? Math.round((presentes.length / total) * 100) : 0;
+    doc.setTextColor(...TEXTO);
+    y = parrafoRico(doc, [
+      { t: "En la ciudad de Quito, el día " },
+      { t: fechaHoraLarga(a), b: true },
+      { t: ", en " },
+      { t: a.lugar || "lugar no registrado", b: true },
+      { t: `, se reunieron los miembros del capítulo de LAMA Quito en Asamblea ${tipo} correspondiente al mes de ` },
+      { t: mesYAnio(a), b: true },
+      { t: ", con la asistencia de " },
+      { t: `${presentes.length} de ${total}`, b: true },
+      { t: " socios activos (" },
+      { t: `${pct} %`, b: true },
+      { t: "). Se trataron los siguientes puntos:" },
+    ], MX, y, ANCHO, LH, FS, TAM);
+    y += 4;
+
+    // --- Orden del día (números dorados, como en la convocatoria) ---
+    y = seccion(y, "Orden del día");
+    const items = (a.ordenDia && a.ordenDia.length) ? a.ordenDia : ["No se registraron puntos."];
+    const SANGRIA = 9, LI = 6;
+    items.forEach((it, i) => {
+      doc.setFont(FS, "normal"); doc.setFontSize(TAM);
+      const lineas = doc.splitTextToSize(String(it), ANCHO - SANGRIA - 2);
+      y = asegurar(y, lineas.length * LI + 2);
+      doc.setFont(FS, "bold"); doc.setTextColor(...ORO);
+      doc.text(`${i + 1}.`, MX + 2, y);
+      doc.setFont(FS, "normal"); doc.setTextColor(...TEXTO);
+      lineas.forEach((l, j) => doc.text(l, MX + SANGRIA, y + j * LI));
+      y += lineas.length * LI + 1.5;
+    });
+    y += 5;
+
+    // --- Temas principales tratados ---
+    y = seccion(y, "Temas principales tratados");
+    doc.setFont(FS, "normal"); doc.setFontSize(TAM); doc.setTextColor(...TEXTO);
+    const temas = (a.temas && a.temas.trim()) ? a.temas.trim() : "No se registró un resumen de temas.";
+    // respeta cada salto de línea (Enter) tal como se escribió, incluidas las líneas en blanco
+    temas.replace(/\r\n?/g, "\n").split("\n").forEach(linea => {
+      if (!linea.trim()) { y += LI * 0.6; return; }
+      doc.splitTextToSize(linea, ANCHO).forEach(l => {
+        y = asegurar(y, LI);
+        doc.text(l, MX, y);
+        y += LI;
+      });
+    });
+    y += 5;
+
+    // --- Asistencia ---
+    y = seccion(y, "Registro de asistencia");
+    // resumen en una franja crema con bordes dorados
+    y = asegurar(y, 14);
+    doc.setFillColor(...CREMA); doc.setDrawColor(...ORO); doc.setLineWidth(0.3);
+    doc.roundedRect(MX, y - 5, ANCHO, 10, 1.5, 1.5, "FD");
+    const resumen = [`Presentes: ${presentes.length}`, `Ausentes: ${ausentes.length}`,
+      `Socios activos: ${total}`, `Asistencia: ${pct} %`];
+    doc.setFont(FS, "bold"); doc.setFontSize(10.5); doc.setTextColor(...NAVY);
+    resumen.forEach((r, i) => doc.text(r, MX + ANCHO * (i + 0.5) / 4, y + 1.4, { align: "center" }));
+    y += 11;
+
+    y = tabla(y, ["#", "Socios presentes", "Observación"],
+      presentes.length ? presentes.map((s, i) => [i + 1, s.nombre, obs(s)]) : [["—", "Sin asistentes registrados", ""]],
+      NAVY);
+    if (ausentes.length) {
+      y = tabla(y, ["#", "Socios ausentes", "Observación"],
+        ausentes.map((s, i) => [i + 1, s.nombre, obs(s)]), ORO);
+    }
+
+    // --- Firma (igual que la convocatoria, centrada) ---
+    y = asegurar(y + 6, 34);
+    y += 14;
+    doc.setDrawColor(...ORO); doc.setLineWidth(0.4);
+    doc.line(W / 2 - 32, y - 7, W / 2 + 32, y - 7);
+    fuenteTitulo(16); doc.setTextColor(...NAVY);
+    doc.text("Directiva", W / 2, y, { align: "center" });
+    y += 7;
+    doc.setFont(FS, "bold"); doc.setFontSize(12); doc.setTextColor(...ORO);
+    doc.text("LAMA Quito", W / 2, y, { align: "center" });
+
+    // --- Pie: fecha de generación y número de página, dentro del marco ---
+    const paginas = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= paginas; i++) {
+      doc.setPage(i);
+      doc.setFont("times", "italic"); doc.setFontSize(8.5); doc.setTextColor(...GRIS);
+      doc.text(`Generado el ${new Date().toLocaleString("es-EC")}`, MX, H - 14);
+      doc.text(`Página ${i} de ${paginas}`, W - MX, H - 14, { align: "right" });
+    }
+
+    doc.save(`acta-asamblea-${a.fecha || "sinfecha"}.pdf`);
+    UI.toast("Acta de la asamblea descargada.");
   }
 
   // ====================== CUADRO ANUAL ======================
@@ -526,8 +593,10 @@ const PDF = (() => {
     doc.setTextColor(...NAVY);
     doc.text("CONVOCATORIA", W / 2, y, { align: "center" });
     y += 9;
+    // tipo de asamblea según el check "Asamblea extraordinaria" (sin marcar = Ordinaria)
+    const tipo = a.extraordinaria ? "Extraordinaria" : "Ordinaria";
     doc.setFont("times", "italic"); doc.setFontSize(14); doc.setTextColor(...ORO);
-    doc.text("Sesión Ordinaria de Asamblea", W / 2, y, { align: "center" });
+    doc.text(`Asamblea ${tipo}`, W / 2, y, { align: "center" });
     y += 14;
 
     // --- Texto de la convocatoria ---
@@ -535,7 +604,7 @@ const PDF = (() => {
     y = parrafoRico(doc, [
       { t: "Con un cordial saludo y por medio de la presente, la directiva actual se permite " },
       { t: "CONVOCAR", b: true },
-      { t: " a los miembros del capítulo de LAMA Quito a la sesión ordinaria de Asamblea del mes de " },
+      { t: ` a los miembros del capítulo de LAMA Quito a la Asamblea ${tipo} del mes de ` },
       { t: mesYAnio(a), b: true },
       { t: ". La misma que tendrá lugar en " },
       { t: a.lugar || "lugar por definir", b: true },

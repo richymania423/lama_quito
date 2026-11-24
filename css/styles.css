@@ -58,7 +58,7 @@ h1, h2, h3 { margin: 0 0 .4rem; }
 .btn-menu .burger { font-size: 1.15rem; line-height: 1; }
 
 .nav-overlay {
-  position: fixed; inset: 0; background: rgba(20, 35, 55, .45);
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0; inset: 0; background: rgba(20, 35, 55, .45);
   opacity: 0; visibility: hidden;
   transition: opacity .2s ease, visibility 0s linear .2s;
   z-index: 90;
@@ -153,8 +153,11 @@ h1, h2, h3 { margin: 0 0 .4rem; }
   cursor: pointer;
   font-size: .92rem;
   font-weight: 600;
+  font-family: inherit;
   transition: background .15s, opacity .15s;
 }
+/* los botones nativos no heredan la tipografía por defecto (en Safari salían con letra tipo Times) */
+button { font-family: inherit; }
 .btn:hover { background: var(--primary-dark); }
 .btn-sm { padding: .4rem .8rem; font-size: .85rem; }
 .btn-outline { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
@@ -272,7 +275,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary); o
 
 /* ---------- Modal ---------- */
 .modal-backdrop {
-  position: fixed; inset: 0; background: rgba(20, 35, 55, .5);
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0; inset: 0; background: rgba(20, 35, 55, .5);
   display: flex; align-items: flex-start; justify-content: center;
   padding: 2rem 1rem; z-index: 100; overflow-y: auto;
 }
@@ -310,13 +313,19 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary); o
 .toast {
   position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(120%);
   background: var(--text); color: #fff; padding: .7rem 1.2rem; border-radius: 8px;
-  font-size: .9rem; box-shadow: 0 4px 20px rgba(0,0,0,.25); transition: transform .25s; z-index: 200;
+  font-size: .9rem; box-shadow: 0 4px 20px rgba(0,0,0,.25); z-index: 200;
+  /* oculto por completo cuando no hay mensaje (antes quedaba una franja vacía visible) */
+  opacity: 0; visibility: hidden;
+  transition: transform .25s, opacity .25s, visibility 0s linear .25s;
 }
-.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.show {
+  transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible;
+  transition: transform .25s, opacity .25s, visibility 0s;
+}
 
 /* ---------- Login ---------- */
 .login-screen {
-  position: fixed; inset: 0; z-index: 300;
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0; inset: 0; z-index: 300;
   background: linear-gradient(135deg, var(--primary-dark), var(--primary));
   display: flex; align-items: center; justify-content: center; padding: 1.5rem;
 }
@@ -374,3 +383,8 @@ body:not(.auth-ok) .app-footer { display: none; }
 .toggle-arbol{width:1.5rem;height:1.5rem;margin-right:.4rem;border:1px solid var(--primary);border-radius:4px;background:#fff;color:var(--primary);font-weight:700;line-height:1;cursor:pointer;padding:0}
 .toggle-arbol:hover{background:var(--primary);color:#fff}
 tr[hidden]{display:none}
+
+/* Pantallas táctiles (incluye iPad y tablets): campos de 16 px para que Safari no haga zoom al tocarlos */
+@media (pointer: coarse) {
+  input, select, textarea { font-size: 16px; }
+}

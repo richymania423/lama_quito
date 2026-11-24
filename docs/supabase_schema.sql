@@ -1,5 +1,5 @@
 -- =====================================================================
--- Secretario LAMA · Esquema de base de datos para Supabase
+-- LAMA QuitoConnect · Esquema de base de datos para Supabase
 -- Ejecuta este script en: Supabase -> SQL Editor -> New query -> Run
 -- =====================================================================
 

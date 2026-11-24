@@ -1,5 +1,5 @@
 -- =====================================================================
--- CORRECCIÓN · Secretario LAMA
+-- CORRECCIÓN · LAMA QuitoConnect
 -- Da permisos a los usuarios autenticados sobre las tablas de datos.
 -- Soluciona: "permission denied for table socios/asambleas/asistencia"
 -- al operar con la sesión iniciada (rol authenticated).

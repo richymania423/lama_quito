@@ -1,5 +1,5 @@
 -- =====================================================================
--- Secretario LAMA · Autenticación con roles (Supabase Auth)
+-- LAMA QuitoConnect · Autenticación con roles (Supabase Auth)
 -- Login por CÉDULA: el usuario escribe su cédula y la app la convierte
 -- en un email sintético "<cedula>@lama.app" para Supabase Auth.
 -- Ejecuta en: Supabase -> SQL Editor -> New query -> Run

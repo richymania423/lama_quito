@@ -1,5 +1,5 @@
 -- =====================================================================
--- CORRECCIÓN · Secretario LAMA
+-- CORRECCIÓN · LAMA QuitoConnect
 -- Da permiso de lectura de la tabla perfiles al rol "authenticated".
 -- Soluciona: "permission denied for table perfiles" (42501) al leer el rol.
 -- Ejecuta en: Supabase -> SQL Editor -> New query -> Run

@@ -1,5 +1,5 @@
 -- =====================================================================
--- Migración · Secretario LAMA
+-- Migración · LAMA QuitoConnect
 -- Agrega "tipo de sangre" y "sector de residencia" a la tabla socios.
 -- Ejecuta en: Supabase -> SQL Editor -> New query -> Run
 -- Es seguro ejecutarlo varias veces (usa IF NOT EXISTS).
