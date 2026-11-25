@@ -29,7 +29,9 @@ const UI = (() => {
     if (name === "socios") Socios.render();
     if (name === "asambleas") Asambleas.render();
     if (name === "asistencia") Asistencia.render();
+    if (name === "rodadas") Rodadas.render();
     if (name === "cuadro") Cuadro.render();
+    if (name === "puntaje") Puntaje.render();
   }
 
   // ---------- Modal ----------
@@ -132,6 +134,9 @@ const Dashboard = (() => {
     }
     document.getElementById("statPromedio").textContent = promedio + "%";
 
+    // rodadas: realizadas del año, km y próximas salidas
+    await renderRodadas(socios, hoy, anioActual);
+
     // cumpleañeros del mes en curso
     await renderCumple(socios);
 
@@ -149,6 +154,43 @@ const Dashboard = (() => {
         </div>`;
       }).join("");
     }
+  }
+
+  // Una rodada cuenta como "realizada" si su fecha ya pasó (o es hoy).
+  // Si las tablas de rodadas aún no existen, la sección se muestra vacía sin romper el Inicio.
+  async function renderRodadas(socios, hoy, anioActual) {
+    const cont = document.getElementById("dashRodadas");
+    let rodadas = [];
+    try {
+      rodadas = await DB.rodadas.listar();
+    } catch (err) {
+      console.warn("No se pudieron cargar las rodadas:", err);
+      document.getElementById("statRodadas").textContent = "—";
+      document.getElementById("statKm").textContent = "—";
+      cont.innerHTML = `<p class="muted">Las rodadas no están disponibles todavía.</p>`;
+      return;
+    }
+    const realizadas = rodadas.filter(r => r.fecha && r.fecha.startsWith(anioActual) && r.fecha <= hoy);
+    const km = realizadas.reduce((t, r) => t + (Number(r.distanciaKm) || 0), 0);
+    document.getElementById("statRodadas").textContent = realizadas.length;
+    document.getElementById("statKm").textContent = km.toLocaleString("es-EC", { maximumFractionDigits: 1 });
+
+    const proximas = rodadas
+      .filter(r => r.fecha && r.fecha >= hoy)
+      .sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaEncuentro || "").localeCompare(b.horaEncuentro || ""))
+      .slice(0, 5);
+    if (!proximas.length) {
+      cont.innerHTML = `<p class="muted">No hay rodadas programadas.</p>`;
+      return;
+    }
+    const nombre = (id) => { const s = socios.find(x => x.id === id); return s ? s.nombre : ""; };
+    cont.innerHTML = proximas.map(r => `
+      <div class="item">
+        <span><b>${UI.fmtFecha(r.fecha)}</b>${r.horaEncuentro ? ` · ${UI.esc(r.horaEncuentro)}` : ""}
+          · ${UI.esc(r.destino || "Destino por definir")}
+          <span class="badge ${Puntos.tipo(r.tipo).badge}" title="${UI.esc(Puntos.tipo(r.tipo).nombre)}">${UI.esc(Puntos.tipo(r.tipo).corto)}</span></span>
+        <span class="muted">${r.lugarEncuentro ? "Encuentro: " + UI.esc(r.lugarEncuentro) : ""}${nombre(r.socioEncargadoId) ? ` · A cargo: ${UI.esc(nombre(r.socioEncargadoId))}` : ""}</span>
+      </div>`).join("");
   }
 
   async function renderCumple(socios) {
@@ -385,6 +427,7 @@ document.addEventListener("DOMContentLoaded", () => {
   Socios.init();
   Asambleas.init();
   Asistencia.init();
+  Rodadas.init();
   Cuadro.init();
   Documentacion.init();
 

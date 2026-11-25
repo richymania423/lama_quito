@@ -57,6 +57,9 @@ const DB = (() => {
     ordenDia: Array.isArray(r.orden_dia) ? r.orden_dia : (r.orden_dia || []),
     temas: r.temas || "",
     extraordinaria: r.extraordinaria === true,   // false = Ordinaria (por defecto)
+    // coordenadas del lugar (null si no se registraron)
+    lugarLat: r.lugar_lat == null ? null : Number(r.lugar_lat),
+    lugarLng: r.lugar_lng == null ? null : Number(r.lugar_lng),
     creado: r.creado,
   });
   const asistenciaDesde = (r) => ({
@@ -306,9 +309,24 @@ const DB = (() => {
         orden_dia: Array.isArray(d.ordenDia) ? d.ordenDia : [],
         temas: d.temas || "",
         extraordinaria: d.extraordinaria === true,
+        lugar_lat: d.lugarLat == null || d.lugarLat === "" || isNaN(Number(d.lugarLat)) ? null : Number(d.lugarLat),
+        lugar_lng: d.lugarLng == null || d.lugarLng === "" || isNaN(Number(d.lugarLng)) ? null : Number(d.lugarLng),
         creado: d.creado || new Date().toISOString(),
       };
+      if (fila.lugar_lat == null || fila.lugar_lng == null) { fila.lugar_lat = null; fila.lugar_lng = null; }
+      // Si aún no se ejecutó docs/supabase_asambleas_coordenadas.sql, las columnas no existen:
+      // sin coordenadas se guarda igual; con coordenadas se avisa qué falta.
+      const sinColumnasCoord = async (error) => {
+        if (!error || !/lugar_(lat|lng)/i.test(error.message || "")) return null;
+        if (fila.lugar_lat != null) {
+          throw new Error("Para guardar coordenadas, ejecuta primero docs/supabase_asambleas_coordenadas.sql en Supabase.");
+        }
+        delete fila.lugar_lat; delete fila.lugar_lng;
+        return await sb.from("asambleas").upsert(fila).select().single();
+      };
       let { data, error } = await sb.from("asambleas").upsert(fila).select().single();
+      const reintento = await sinColumnasCoord(error);
+      if (reintento) ({ data, error } = reintento);
       // Si aún no se ejecutó docs/supabase_asambleas_extraordinaria.sql, la columna no existe:
       // una asamblea Ordinaria se guarda igual; una Extraordinaria avisa qué falta.
       if (error && /extraordinaria/i.test(error.message || "")) {
@@ -317,6 +335,8 @@ const DB = (() => {
         }
         delete fila.extraordinaria;
         ({ data, error } = await sb.from("asambleas").upsert(fila).select().single());
+        const otra = await sinColumnasCoord(error);   // por si también faltan las coordenadas
+        if (otra) ({ data, error } = otra);
       }
       check(error);
       return asambleaDesde(data);
@@ -363,10 +383,160 @@ const DB = (() => {
     },
   };
 
+  // ====================== RODADAS ======================
+  const rodadaDesde = (r) => ({
+    id: r.id,
+    fecha: r.fecha || "",
+    horaEncuentro: r.hora_encuentro ? String(r.hora_encuentro).slice(0, 5) : "",
+    horaSalida: r.hora_salida ? String(r.hora_salida).slice(0, 5) : "",
+    lugarEncuentro: r.lugar_encuentro || "",
+    destino: r.destino || "",
+    tipo: Puntos.normalizarTipo(r.tipo),   // código del tipo de evento (ver js/puntos.js)
+    distanciaKm: r.distancia_km == null ? "" : Number(r.distancia_km),
+    socioEncargadoId: r.socio_encargado_id || "",
+    // coordenadas del punto de encuentro (null si no se registraron)
+    encuentroLat: r.encuentro_lat == null ? null : Number(r.encuentro_lat),
+    encuentroLng: r.encuentro_lng == null ? null : Number(r.encuentro_lng),
+    creado: r.creado,
+  });
+  const rodadaAsisDesde = (r) => ({
+    id: r.id,
+    rodadaId: r.rodada_id,
+    socioId: r.socio_id,
+    presente: !!r.presente,
+    acompanante: r.acompanante === true,   // fue como acompañante en otra moto: no suma puntos
+    observacion: r.observacion || "",
+  });
+  const decOpc = (v) => (v === "" || v == null || isNaN(Number(v)) ? null : Number(v));
+
+  const rodadas = {
+    listar: async () => {
+      const { data, error } = await sb.from("rodadas").select("*").order("fecha", { ascending: false });
+      check(error);
+      return (data || []).map(rodadaDesde);
+    },
+    obtener: async (id) => {
+      const { data, error } = await sb.from("rodadas").select("*").eq("id", id).maybeSingle();
+      check(error);
+      return data ? rodadaDesde(data) : null;
+    },
+    guardar: async (d) => {
+      const fila = {
+        id: d.id || uid(),
+        fecha: d.fecha || null,
+        hora_encuentro: d.horaEncuentro || null,
+        hora_salida: d.horaSalida || null,
+        lugar_encuentro: (d.lugarEncuentro || "").trim(),
+        destino: (d.destino || "").trim(),
+        tipo: Puntos.normalizarTipo(d.tipo),
+        distancia_km: decOpc(d.distanciaKm),
+        socio_encargado_id: d.socioEncargadoId || null,
+        encuentro_lat: decOpc(d.encuentroLat),
+        encuentro_lng: decOpc(d.encuentroLng),
+        creado: d.creado || new Date().toISOString(),
+      };
+      if (fila.encuentro_lat == null || fila.encuentro_lng == null) { fila.encuentro_lat = null; fila.encuentro_lng = null; }
+      let { data, error } = await sb.from("rodadas").upsert(fila).select().single();
+      // Si aún no se ejecutó docs/supabase_rodadas_coordenadas.sql, las columnas no existen:
+      // sin coordenadas se guarda igual; con coordenadas se avisa qué falta.
+      if (error && /encuentro_(lat|lng)/i.test(error.message || "")) {
+        if (fila.encuentro_lat != null) {
+          throw new Error("Para guardar coordenadas, ejecuta primero docs/supabase_rodadas_coordenadas.sql en Supabase.");
+        }
+        delete fila.encuentro_lat; delete fila.encuentro_lng;
+        ({ data, error } = await sb.from("rodadas").upsert(fila).select().single());
+      }
+      // tipos nuevos sin haber ejecutado docs/supabase_puntos.sql: la restricción anterior los rechaza
+      if (error && /rodadas_tipo_check/i.test(error.message || "")) {
+        throw new Error("Para usar este tipo de evento, ejecuta primero docs/supabase_puntos.sql en Supabase.");
+      }
+      if (error && /rodadas/i.test(error.message || "") && /(relation|table|schema cache)/i.test(error.message || "")) {
+        throw new Error("Falta crear las tablas: ejecuta docs/supabase_rodadas.sql en Supabase.");
+      }
+      check(error);
+      return rodadaDesde(data);
+    },
+    eliminar: async (id) => {
+      // la FK con ON DELETE CASCADE borra la asistencia asociada
+      const { error } = await sb.from("rodadas").delete().eq("id", id);
+      check(error);
+    },
+  };
+
+  const rodadasAsistencia = {
+    porRodada: async (rodadaId) => {
+      const { data, error } = await sb.from("rodadas_asistencia").select("*").eq("rodada_id", rodadaId);
+      check(error);
+      return (data || []).map(rodadaAsisDesde);
+    },
+    todos: async () => {
+      const { data, error } = await sb.from("rodadas_asistencia").select("*");
+      check(error);
+      return (data || []).map(rodadaAsisDesde);
+    },
+    marcar: async ({ rodadaId, socioId, presente, acompanante = false, observacion }) => {
+      const fila = {
+        id: `${rodadaId}__${socioId}`,
+        rodada_id: rodadaId,
+        socio_id: socioId,
+        presente: !!presente,
+        acompanante: !!presente && !!acompanante,   // solo tiene sentido si asistió
+        observacion: observacion || "",
+      };
+      let { error } = await sb.from("rodadas_asistencia").upsert(fila, { onConflict: "id" });
+      // sin docs/supabase_puntos.sql la columna no existe: se guarda sin ella, salvo que se marque
+      if (error && /acompanante/i.test(error.message || "")) {
+        if (fila.acompanante) throw new Error("Para marcar acompañantes, ejecuta primero docs/supabase_puntos.sql en Supabase.");
+        delete fila.acompanante;
+        ({ error } = await sb.from("rodadas_asistencia").upsert(fila, { onConflict: "id" }));
+      }
+      check(error);
+      return rodadaAsisDesde(fila);
+    },
+  };
+
+  // ====================== PARÁMETROS DE PUNTAJE ======================
+  // Una sola fila (id = "actual"). Leer: cualquier usuario con sesión; guardar: solo admin (RLS).
+  const puntos = {
+    obtener: async () => {
+      const { data, error } = await sb.from("puntos_config").select("*").eq("id", "actual").maybeSingle();
+      check(error);
+      return data ? { valores: data.valores || {}, actualizado: data.actualizado, actualizadoPor: data.actualizado_por || "" } : null;
+    },
+    guardar: async (valores, por) => {
+      const fila = { id: "actual", valores, actualizado: new Date().toISOString(), actualizado_por: por || null };
+      const { data, error } = await sb.from("puntos_config").upsert(fila).select().single();
+      if (error && /puntos_config/i.test(error.message || "") && /(relation|table|schema cache|does not exist)/i.test(error.message || "")) {
+        throw new Error("Falta crear la tabla de puntaje: ejecuta docs/supabase_puntos.sql en Supabase.");
+      }
+      check(error);
+      return { valores: data.valores, actualizado: data.actualizado, actualizadoPor: data.actualizado_por || "" };
+    },
+  };
+
   // ====================== RESPALDO ======================
+  // true si el error indica que la tabla aún no existe (SQL de rodadas sin ejecutar)
+  const faltaTabla = (err) => /(does not exist|schema cache|relation)/i.test((err && err.message) || "");
+
   async function exportar() {
     const [s, a, as] = await Promise.all([socios.listar(), asambleas.listar(), asistencia.todos()]);
-    return { version: 2, exportado: new Date().toISOString(), socios: s, asambleas: a, asistencia: as };
+    let r = [], ra = [];
+    try {
+      [r, ra] = await Promise.all([rodadas.listar(), rodadasAsistencia.todos()]);
+    } catch (err) {
+      if (!faltaTabla(err)) throw err;   // sin tablas de rodadas: el respaldo sale sin ellas
+    }
+    let pc = null;
+    try {
+      const fila = await puntos.obtener();
+      pc = fila ? fila.valores : null;
+    } catch (err) {
+      if (!faltaTabla(err)) throw err;   // sin tabla de puntaje: el respaldo sale sin parámetros
+    }
+    return {
+      version: 4, exportado: new Date().toISOString(),
+      socios: s, asambleas: a, asistencia: as, rodadas: r, rodadasAsistencia: ra, puntosConfig: pc,
+    };
   }
 
   async function importar(data) {
@@ -380,16 +550,31 @@ const DB = (() => {
         presente: x.presente, observacion: x.observacion,
       });
     }
+    // rodadas (respaldos versión 3 en adelante)
+    for (const r of data.rodadas || []) await rodadas.guardar(r);
+    for (const x of data.rodadasAsistencia || []) {
+      await rodadasAsistencia.marcar({
+        rodadaId: x.rodadaId, socioId: x.socioId,
+        presente: x.presente, acompanante: x.acompanante, observacion: x.observacion,
+      });
+    }
+    // parámetros de puntaje (respaldos versión 4 en adelante)
+    if (data.puntosConfig && typeof data.puntosConfig === "object") {
+      await puntos.guardar(data.puntosConfig, "respaldo importado");
+    }
   }
 
   async function borrarTodo() {
     // borra asistencia primero por la relación de claves foráneas
+    // (si las tablas de rodadas no existen, Supabase devuelve error y se ignora)
+    await sb.from("rodadas_asistencia").delete().neq("id", "");
+    await sb.from("rodadas").delete().neq("id", "");
     await sb.from("asistencia").delete().neq("id", "");
     await sb.from("asambleas").delete().neq("id", "");
     await sb.from("socios").delete().neq("id", "");
   }
 
-  return { socios, copilotos, motos, fotos, documentos, asambleas, asistencia, exportar, importar, borrarTodo, _uid: uid, _sb: sb };
+  return { socios, copilotos, motos, fotos, documentos, asambleas, asistencia, rodadas, rodadasAsistencia, puntos, exportar, importar, borrarTodo, _uid: uid, _sb: sb };
 })();
 
 window.DB = DB;

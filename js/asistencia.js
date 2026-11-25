@@ -31,6 +31,7 @@ const Asistencia = (() => {
   }
 
   function mostrarVacio() {
+    Mapa.quitar();
     document.getElementById("asambleaDetalle").classList.add("hidden");
     document.getElementById("asistenciaEmpty").classList.remove("hidden");
   }
@@ -82,6 +83,27 @@ const Asistencia = (() => {
       <div class="meta-item"><b>Hora</b>${UI.esc(a.hora) || "—"}</div>
       <div class="meta-item"><b>Lugar</b>${UI.esc(a.lugar) || "—"}</div>
       <div class="meta-item"><b>Mes correspondencia</b>${UI.esc(a.mesCorrespondencia) || "—"}</div>`;
+    pintarMapa();
+  }
+
+  // Mapa del lugar: solo si la asamblea tiene coordenadas
+  function pintarMapa() {
+    const a = _asamblea;
+    const cont = document.getElementById("asambleaUbicacion");
+    const div = document.getElementById("asambleaMapa");
+    Mapa.quitar();
+    if (!Mapa.hay(a.lugarLat, a.lugarLng)) {
+      cont.classList.add("hidden");
+      return;
+    }
+    cont.classList.remove("hidden");
+    document.getElementById("btnGoogleMapsAsamblea").href = Mapa.urlGoogle(a.lugarLat, a.lugarLng);
+    document.getElementById("asambleaCoordTxt").textContent = Mapa.texto(a.lugarLat, a.lugarLng);
+    div.innerHTML = "";
+    Mapa.mostrar(div, a.lugarLat, a.lugarLng, a.lugar || "Lugar de la asamblea").catch(err => {
+      console.warn("Mapa no disponible:", err);
+      div.innerHTML = `<p class="muted mapa-aviso">No se pudo cargar el mapa. Revisa tu conexión o usa “Abrir en Google Maps”.</p>`;
+    });
   }
 
   // ---------- Orden del día (solo lectura; se edita en el módulo Asambleas) ----------

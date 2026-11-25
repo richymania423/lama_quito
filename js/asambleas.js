@@ -121,6 +121,13 @@ const Asambleas = (() => {
           <input name="lugar" value="${a ? UI.esc(a.lugar) : ""}" placeholder="Sede, salón, dirección..." />
         </div>
         <div class="form-field">
+          <label>Coordenadas del lugar</label>
+          <input name="coordLugar" inputmode="text" autocomplete="off"
+            value="${a && Mapa.hay(a.lugarLat, a.lugarLng) ? Mapa.texto(a.lugarLat, a.lugarLng) : ""}"
+            placeholder="-0.180653, -78.467834  o enlace de Google Maps" />
+          <small class="muted" id="coordLugarHint">Opcional. Pega las coordenadas o el enlace completo de Google Maps para mostrar un mapa.</small>
+        </div>
+        <div class="form-field">
           <label>Mes de correspondencia</label>
           <select name="mesCorrespondencia">${opcionesMes}</select>
         </div>
@@ -162,10 +169,26 @@ const Asambleas = (() => {
     });
 
     document.getElementById("cancelAsamblea").addEventListener("click", UI.closeModal);
+    // confirma al vuelo qué coordenadas se leyeron (útil al pegar un enlace)
+    const inpCoord = document.querySelector('#formAsamblea [name="coordLugar"]');
+    const hintCoord = document.getElementById("coordLugarHint");
+    const textoHint = hintCoord.textContent;
+    inpCoord.addEventListener("input", () => {
+      const v = inpCoord.value.trim();
+      const c = v ? Mapa.parsear(v) : null;
+      hintCoord.textContent = !v ? textoHint : c ? `✓ Ubicación: ${Mapa.texto(c.lat, c.lng)}` : "No se reconocen coordenadas en ese texto.";
+    });
     document.getElementById("formAsamblea").addEventListener("submit", async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
       if (!fd.get("fecha")) return UI.toast("La fecha es obligatoria.");
+      const coordTxt = String(fd.get("coordLugar") || "").trim();
+      const coord = coordTxt ? Mapa.parsear(coordTxt) : null;
+      if (coordTxt && !coord) {
+        return UI.toast(/goo\.gl|maps\.app/i.test(coordTxt)
+          ? "Ese es un enlace corto de Google Maps. Ábrelo y copia el enlace completo, o copia las coordenadas."
+          : "Coordenadas no válidas. Usa el formato: -0.180653, -78.467834");
+      }
       try {
         await DB.asambleas.guardar({
           id: fd.get("id") || undefined,
@@ -175,6 +198,8 @@ const Asambleas = (() => {
           mesCorrespondencia: fd.get("mesCorrespondencia"),
           ordenDia: [..._ordenDia],
           extraordinaria: fd.get("extraordinaria") === "on",
+          lugarLat: coord ? coord.lat : null,
+          lugarLng: coord ? coord.lng : null,
           temas: a ? a.temas : "",
           creado: a ? a.creado : undefined,
         });

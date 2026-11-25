@@ -22,17 +22,17 @@ const Auth = (() => {
   const ROLES = {
     admin: {
       nombre: "Administrador",
-      ver: ["dashboard", "directiva", "socios", "asambleas", "asistencia", "cuadro", "documentacion"],
-      administrar: ["socios", "copilotos", "asambleas", "asistencia", "cuadro", "respaldo", "documentacion"],
+      ver: ["dashboard", "directiva", "socios", "asambleas", "asistencia", "rodadas", "cuadro", "puntaje", "documentacion"],
+      administrar: ["socios", "copilotos", "asambleas", "asistencia", "rodadas", "cuadro", "puntaje", "respaldo", "documentacion"],
     },
     secretario: {
       nombre: "Secretario",
-      ver: ["dashboard", "directiva", "socios", "asambleas", "asistencia", "cuadro", "documentacion"],
-      administrar: ["asambleas", "asistencia", "documentacion"],
+      ver: ["dashboard", "directiva", "socios", "asambleas", "asistencia", "rodadas", "cuadro", "documentacion"],
+      administrar: ["asambleas", "asistencia", "rodadas", "documentacion"],
     },
     lectura: {
       nombre: "Lectura",
-      ver: ["dashboard", "directiva", "socios", "asistencia", "cuadro", "documentacion"],
+      ver: ["dashboard", "directiva", "socios", "asistencia", "rodadas", "cuadro", "documentacion"],
       administrar: [],
     },
   };

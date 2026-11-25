@@ -71,7 +71,9 @@
     <button class="nav-btn" data-view="socios"><span class="nav-ico" aria-hidden="true">👥</span><span class="nav-txt">Socios</span></button>
     <button class="nav-btn" data-view="asambleas"><span class="nav-ico" aria-hidden="true">📅</span><span class="nav-txt">Asambleas</span></button>
     <button class="nav-btn" data-view="asistencia"><span class="nav-ico" aria-hidden="true">✅</span><span class="nav-txt">Asistencia</span></button>
+    <button class="nav-btn" data-view="rodadas"><span class="nav-ico" aria-hidden="true">🏍️</span><span class="nav-txt">Rodadas</span></button>
     <button class="nav-btn" data-view="cuadro"><span class="nav-ico" aria-hidden="true">📊</span><span class="nav-txt">Cuadro anual</span></button>
+    <button class="nav-btn" data-view="puntaje"><span class="nav-ico" aria-hidden="true">🏅</span><span class="nav-txt">Puntaje</span></button>
     <button class="nav-btn" data-view="documentacion"><span class="nav-ico" aria-hidden="true">📁</span><span class="nav-txt">Documentación</span></button>
   </nav>
 
@@ -96,6 +98,19 @@
           <span class="stat-num" id="statPromedio">0%</span>
           <span class="stat-label">Asistencia promedio</span>
         </div>
+        <div class="stat-card">
+          <span class="stat-num" id="statRodadas">0</span>
+          <span class="stat-label">Rodadas realizadas (este año)</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-num" id="statKm">0</span>
+          <span class="stat-label">Km recorridos en rodadas (este año)</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>🏍️ Próximas rodadas</h3>
+        <div id="dashRodadas" class="list-simple"></div>
       </div>
 
       <div class="panel">
@@ -197,6 +212,13 @@
         <div class="panel">
           <h3>Datos de la asamblea</h3>
           <div class="asamblea-meta" id="asambleaMeta"></div>
+          <div id="asambleaUbicacion" class="hidden">
+            <div class="mapa-encuentro" id="asambleaMapa" role="region" aria-label="Mapa del lugar de la asamblea"></div>
+            <div class="btn-row" style="margin-top:.6rem">
+              <a class="btn btn-sm btn-outline" id="btnGoogleMapsAsamblea" target="_blank" rel="noopener">📍 Abrir en Google Maps</a>
+              <span class="muted" id="asambleaCoordTxt"></span>
+            </div>
+          </div>
           <div class="btn-row">
             <button class="btn btn-outline" id="btnConvocatoria">📄 Descargar convocatoria (PDF)</button>
           </div>
@@ -254,6 +276,98 @@
       <p class="muted empty-hint" id="asistenciaEmpty">Selecciona o crea una asamblea para registrar la asistencia.</p>
     </section>
 
+    <!-- ===================== RODADAS ===================== -->
+    <section class="view" id="view-rodadas">
+      <!-- Listado -->
+      <div id="rodadasLista">
+        <div class="view-head">
+          <h2>Rodadas</h2>
+          <div class="btn-row">
+            <label for="filtroAnioRodadas" class="muted" style="font-weight:600">Año</label>
+            <select id="filtroAnioRodadas" style="width:auto;min-width:110px" aria-label="Filtrar rodadas por año"></select>
+            <select id="filtroTipoRodadas" style="width:auto;min-width:140px" aria-label="Filtrar rodadas por tipo">
+              <option value="">Todos los tipos</option>
+              <option value="Interna">Rodada oficial interna</option>
+              <option value="AniversarioCapitulo">Aniversario de otro capítulo</option>
+              <option value="AniversarioNacional">Aniversario nacional</option>
+              <option value="AniversarioInternacional">Aniversario internacional</option>
+              <option value="Social">Actividad social o benéfica</option>
+            </select>
+            <button class="btn" id="btnNuevaRodada">+ Nueva rodada</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="tablaRodadas">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Encuentro</th>
+                <th>Lugar de encuentro</th>
+                <th>Destino</th>
+                <th>Tipo</th>
+                <th>Distancia</th>
+                <th>Encargado</th>
+                <th>Asistentes</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Detalle y asistencia de una rodada -->
+      <div id="rodadaDetalle" class="hidden">
+        <div class="view-head">
+          <h2>Asistencia a rodada</h2>
+          <div class="btn-row"><button class="btn btn-outline" id="btnVolverRodadas">← Volver a rodadas</button></div>
+        </div>
+        <div class="panel">
+          <h3>Datos de la rodada</h3>
+          <div class="asamblea-meta" id="rodadaMeta"></div>
+          <div class="btn-row">
+            <button class="btn btn-outline" id="btnConvocatoriaRodada">📢 Descargar convocatoria (PDF)</button>
+          </div>
+          <div id="rodadaUbicacion" class="hidden">
+            <div class="mapa-encuentro" id="rodadaMapa" role="region" aria-label="Mapa del punto de encuentro"></div>
+            <div class="btn-row" style="margin-top:.6rem">
+              <a class="btn btn-sm btn-outline" id="btnGoogleMaps" target="_blank" rel="noopener">📍 Abrir en Google Maps</a>
+              <span class="muted" id="rodadaCoordTxt"></span>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Registro de asistencia</h3>
+            <div class="btn-row">
+              <button class="btn btn-sm btn-outline" id="btnRodadaMarcarTodos">Marcar todos</button>
+              <button class="btn btn-sm btn-outline" id="btnRodadaDesmarcarTodos">Desmarcar todos</button>
+            </div>
+          </div>
+          <div class="asistencia-stats" id="rodadaStats"></div>
+          <div class="table-wrap">
+            <table class="data-table" id="tablaRodadaAsistencia">
+              <thead>
+                <tr>
+                  <th>Presente</th>
+                  <th>Socio</th>
+                  <th>Identificación</th>
+                  <th title="Fue como acompañante en otra moto: este evento no le suma puntos">Acompañante</th>
+                  <th>Observación</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Documento final</h3>
+          <p class="muted">Genera el registro de la rodada en PDF con los datos de la salida y el listado de asistentes.</p>
+          <button class="btn" id="btnPDFRodada">📄 Descargar registro de rodada</button>
+        </div>
+      </div>
+    </section>
+
     <!-- ===================== CUADRO ANUAL ===================== -->
     <section class="view" id="view-cuadro">
       <div class="view-head">
@@ -263,6 +377,10 @@
           <button class="btn btn-sm" id="btnPDFCuadro">📄 Descargar Indicadores de Participación (PDF)</button>
         </div>
       </div>
+      <h3 class="cuadro-subtitulo">🏅 Ranking de puntos</h3>
+      <div id="cuadroPuntos"></div>
+
+      <h3 class="cuadro-subtitulo">Asistencia a asambleas</h3>
       <div id="cuadroIndicadores"></div>
 
       <h3 class="cuadro-subtitulo">Detalle por asamblea</h3>
@@ -272,7 +390,19 @@
           <tbody></tbody>
         </table>
       </div>
+
+      <h3 class="cuadro-subtitulo">Participación en rodadas</h3>
+      <div id="cuadroRodadas"></div>
     </section>
+    <!-- ===================== PUNTAJE (parámetros, solo administrador) ===================== -->
+    <section class="view" id="view-puntaje">
+      <div class="view-head">
+        <h2>Parámetros de puntaje</h2>
+      </div>
+      <p class="muted">Valores con los que se calcula el ranking de puntos del Cuadro anual. Los cambios se aplican de inmediato a todos los años.</p>
+      <div id="puntajeContenido"></div>
+    </section>
+
     <!-- ===================== DOCUMENTACIÓN ===================== -->
     <section class="view" id="view-documentacion">
       <div class="view-head">
@@ -325,7 +455,11 @@
   <script src="js/socios.js" defer></script>
   <script src="js/asambleas.js" defer></script>
   <script src="js/asistencia.js" defer></script>
+  <script src="js/puntos.js" defer></script>
+  <script src="js/mapa.js" defer></script>
+  <script src="js/rodadas.js" defer></script>
   <script src="js/cuadro.js" defer></script>
+  <script src="js/puntaje.js" defer></script>
   <script src="js/directiva.js" defer></script>
   <script src="js/documentos.js" defer></script>
   <script src="js/copilotos.js" defer></script>

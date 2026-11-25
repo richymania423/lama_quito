@@ -179,6 +179,7 @@ button { font-family: inherit; }
 .badge-active { background: #e4f6ec; color: var(--accent); }
 .badge-inactive { background: #fdecea; color: var(--danger); }
 .badge-rol { background: #eef3fb; color: var(--primary-dark); }
+.badge-social { background: #f6eefb; color: #7d3c98; }
 /* ---------- Fotos de socios ---------- */
 .avatar {
   width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex: 0 0 auto;
@@ -283,6 +284,34 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary); o
 .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.3rem; border-bottom: 1px solid var(--border); }
 .modal-close { background: none; border: none; font-size: 1.6rem; cursor: pointer; color: var(--muted); line-height: 1; }
 .modal-body { padding: 1.3rem; }
+
+/* ---------- Módulo Puntaje ---------- */
+.puntaje-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.campo-sufijo { display: flex; align-items: center; gap: .5rem; }
+.campo-sufijo input { flex: 1; min-width: 0; }
+.campo-sufijo span { white-space: nowrap; }
+
+/* ---------- Ranking de puntos (cuadro anual) ---------- */
+.tabla-puntos .fila-puntos { cursor: pointer; }
+.tabla-puntos .fila-puntos:hover td, .tabla-puntos .fila-puntos:focus-visible td { background: #f3f7fd; }
+.tabla-puntos .fila-puntos:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.tabla-puntos td, .tabla-puntos th { white-space: nowrap; }
+.tabla-puntos td:nth-child(2) { white-space: normal; min-width: 150px; }
+/* en teléfonos: solo posición, socio y total; el desglose se ve al tocar el socio */
+@media (max-width: 640px) {
+  .tabla-puntos th:nth-child(n+3):nth-child(-n+9),
+  .tabla-puntos td:nth-child(n+3):nth-child(-n+9) { display: none; }
+  .tabla-puntos td:nth-child(2) { min-width: 0; width: 100%; }
+}
+
+/* ---------- Mapa del punto de encuentro (rodadas) ---------- */
+.mapa-encuentro {
+  height: 260px; margin-top: 1rem; border: 1px solid var(--border); border-radius: 10px;
+  overflow: hidden; background: #eef1f5; position: relative; z-index: 0; /* bajo el menú y los modales */
+}
+.mapa-encuentro .mapa-pin { background: none; border: 0; filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); }
+.mapa-encuentro .mapa-aviso { display: flex; align-items: center; justify-content: center; height: 100%; padding: 1rem; text-align: center; }
+@media (max-width: 600px) { .mapa-encuentro { height: 220px; } }
 
 /* ---------- Misc ---------- */
 .muted { color: var(--muted); font-size: .88rem; }
