@@ -374,9 +374,28 @@ function mostrarLogin() {
 function configurarLogin() {
   const form = document.getElementById("formLogin");
   const btn = form.querySelector("button[type=submit]");
+  let enviando = false;   // evita validar dos veces si se pulsa Enter y clic seguidos
+
+  // Enter en la cédula o en la clave valida las credenciales. Normalmente lo hace el navegador,
+  // pero algunos (sugerencias de contraseñas guardadas, autocompletado, teclados de celular)
+  // se quedan con la tecla; por eso se envía el formulario explícitamente.
+  const enviarConEnter = (e) => {
+    if (e.key !== "Enter" || e.isComposing || e.keyCode === 229) return;
+    e.preventDefault();
+    if (enviando) return;
+    const pass = document.getElementById("loginPass");
+    // en la cédula, si aún falta la clave, Enter pasa al campo de clave
+    if (e.target.id === "loginCedula" && !pass.value) { pass.focus(); return; }
+    if (typeof form.requestSubmit === "function") form.requestSubmit(btn);
+    else btn.click();   // Safari anterior a la versión 16
+  };
+  ["loginCedula", "loginPass"].forEach(id =>
+    document.getElementById(id).addEventListener("keydown", enviarConEnter));
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (enviando) return;
+    enviando = true;
     const cedula = document.getElementById("loginCedula").value;
     const pass = document.getElementById("loginPass").value;
     const err = document.getElementById("loginError");
@@ -391,6 +410,7 @@ function configurarLogin() {
     } catch (ex) {
       err.textContent = "Error de conexión: " + (ex.message || ex);
     } finally {
+      enviando = false;
       btn.disabled = false;
       btn.textContent = "Ingresar";
     }
@@ -404,6 +424,9 @@ function configurarLogin() {
 
 /* ====================== ARRANQUE ====================== */
 document.addEventListener("DOMContentLoaded", () => {
+  // el ingreso se prepara primero: si falla otro módulo, el login sigue funcionando
+  configurarLogin();
+
   // navegación (el menú lateral se oculta al elegir una opción)
   document.querySelectorAll(".nav-btn").forEach(btn =>
     btn.addEventListener("click", () => {
@@ -432,7 +455,6 @@ document.addEventListener("DOMContentLoaded", () => {
   Documentacion.init();
 
   // autenticación: restaura sesión o pide login
-  configurarLogin();
   Auth.cargarSesion().then((rol) => {
     if (rol) iniciarSesionUI();
     else mostrarLogin();

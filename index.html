@@ -23,11 +23,11 @@
       <form id="formLogin">
         <div class="form-field">
           <label for="loginCedula">Cédula o correo</label>
-          <input type="text" id="loginCedula" name="cedula" placeholder="Cédula (o correo del administrador)" autocomplete="username" required />
+          <input type="text" id="loginCedula" name="cedula" placeholder="Cédula (o correo del administrador)" autocomplete="username" autocapitalize="none" spellcheck="false" enterkeyhint="next" required />
         </div>
         <div class="form-field">
           <label for="loginPass">Contraseña</label>
-          <input type="password" id="loginPass" name="password" placeholder="Tu contraseña" autocomplete="current-password" required />
+          <input type="password" id="loginPass" name="password" placeholder="Tu contraseña" autocomplete="current-password" enterkeyhint="go" required />
         </div>
         <p class="login-error" id="loginError"></p>
         <button type="submit" class="btn login-btn">Ingresar</button>
